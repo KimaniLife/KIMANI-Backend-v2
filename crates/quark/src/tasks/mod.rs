@@ -9,6 +9,7 @@ const WORKER_COUNT: usize = 5;
 
 pub mod ack;
 pub mod last_message_id;
+pub mod notifications;
 pub mod process_embeds;
 pub mod web_push;
 
@@ -19,6 +20,7 @@ pub async fn start_workers(db: Database) {
         task::spawn(last_message_id::worker(db.clone()));
         task::spawn(process_embeds::worker(db.clone()));
         task::spawn(web_push::worker(db.clone().into()));
+        task::spawn(notifications::worker(db.clone()));
     }
 }
 

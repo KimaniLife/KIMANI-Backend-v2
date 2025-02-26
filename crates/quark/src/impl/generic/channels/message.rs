@@ -9,13 +9,14 @@ use crate::{
     events::client::EventV1,
     models::{
         message::{
-            AppendMessage, BulkMessageResponse, Interactions, PartialMessage, SendableEmbed,
-            SystemMessage, DataMessageSend,
+            AppendMessage, BulkMessageResponse, DataMessageSend, Interactions, PartialMessage,
+            SendableEmbed, SystemMessage,
         },
         Channel, Emoji, Message, User,
     },
     permissions::PermissionCalculator,
     tasks::ack::AckEvent,
+    tasks::notifications::NotificationType,
     types::{
         january::{Embed, Text},
         push::{MessageAuthor, PushNotification},
@@ -92,9 +93,47 @@ impl Message {
                 };
                 target_ids
             },
-            json!(PushNotification::new(self.clone(), sender, channel.id())).to_string(),
+            json!(PushNotification::new(
+                self.clone(),
+                sender.clone(),
+                channel.id()
+            ))
+            .to_string(),
         )
         .await;
+
+        let target_ids = {
+            let mut target_ids = vec![];
+            match &channel {
+                Channel::DirectMessage { recipients, .. } | Channel::Group { recipients, .. } => {
+                    target_ids = (&recipients.iter().cloned().collect::<HashSet<String>>()
+                        - &filter_online(recipients).await)
+                        .into_iter()
+                        .collect::<Vec<String>>();
+                }
+                Channel::TextChannel { .. } => {
+                    if let Some(mentions) = &self.mentions {
+                        target_ids.append(&mut mentions.clone());
+                    }
+                }
+                _ => {}
+            };
+            target_ids
+        };
+        let payload = json!(PushNotification::new(
+            self.clone(),
+            sender.clone(),
+            channel.id()
+        ))
+        .to_string();
+
+        crate::tasks::notifications::queue(
+            target_ids.clone(),
+            payload.clone(),
+            NotificationType::Email,
+        )
+        .await;
+        crate::tasks::notifications::queue(target_ids, payload, NotificationType::SMS).await;
 
         Ok(())
     }
@@ -452,7 +491,6 @@ impl Interactions {
     }
 }
 
-
 fn throw_permission(permissions: u64, permission: Permission) -> Result<()> {
     if (permission as u64) & permissions == (permission as u64) {
         Ok(())
@@ -462,10 +500,7 @@ fn throw_permission(permissions: u64, permission: Permission) -> Result<()> {
 }
 
 impl DataMessageSend {
-    pub fn validate_webhook_permissions(
-        &self,
-        permissions: u64,
-    ) -> Result<()> {
+    pub fn validate_webhook_permissions(&self, permissions: u64) -> Result<()> {
         throw_permission(permissions, Permission::SendMessage)?;
 
         if self.attachments.as_ref().map_or(false, |v| !v.is_empty()) {

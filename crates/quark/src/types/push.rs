@@ -26,6 +26,7 @@ pub struct PushNotification {
     pub url: String,
 }
 
+#[derive(Clone)]
 pub enum MessageAuthor<'a> {
     User(&'a User),
     Webhook(&'a Webhook),
