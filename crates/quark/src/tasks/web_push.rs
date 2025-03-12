@@ -39,7 +39,7 @@ pub async fn worker(db: Database) {
     let client = WebPushClient::new();
     let key = base64::decode_config(VAPID_PRIVATE_KEY.clone(), base64::URL_SAFE)
         .expect("valid `VAPID_PRIVATE_KEY`");
-
+    
     loop {
         let task = Q.pop().await;
 

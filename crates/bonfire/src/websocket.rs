@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+// use std::sync::Arc;  
 
 use futures::{channel::oneshot, pin_mut, select, FutureExt, SinkExt, StreamExt, TryStreamExt};
 use revolt_presence::{create_session, delete_session};
@@ -7,11 +8,8 @@ use revolt_quark::{
         client::EventV1,
         server::ClientMessage,
         state::{State, SubscriptionStateChange},
-    },
-    models::{user::UserHint, User},
-    redis_kiss, Database,
+    }, models::{user::UserHint, User}, redis_kiss, tasks::notifications::{self, queue, NotificationType}, Database
 };
-
 use async_std::{net::TcpStream, sync::Mutex, task};
 
 use crate::config::WebsocketHandshakeCallback;
@@ -62,14 +60,20 @@ pub fn spawn_client(db: &'static Database, stream: TcpStream, addr: SocketAddr) 
                 if let Some(token) = config.get_session_token().as_ref() {
                     match User::from_token(db, token, UserHint::Any).await {
                         Ok(user) => {
+                            // let user = Arc::new(user); 
                             info!("User {addr:?} authenticated as @{}", user.username);
 
                             // Create local state.
                             let mut state = State::from(user);
+                            // let mut state: State = State::from(user.clone())
                             let user_id = state.cache.user_id.clone();
+                            let user_name = state.cache.user_name.clone();
 
                             // Create presence session.
                             let (first_session, session_id) = create_session(&user_id, 0).await;
+
+                                // Use a reference to `user` in the async block.  
+                            // let user_ref = &user; // Use a reference to avoid moving  
 
                             // Notify socket we have authenticated.
                             write
@@ -144,6 +148,7 @@ pub fn spawn_client(db: &'static Database, stream: TcpStream, addr: SocketAddr) 
                                             }) {
                                                 Some((channel, item)) => {
                                                     if let Ok(mut event) = item {
+                                                        info!("Channel: {}, Event: {:?}", channel, event);
                                                         if state
                                                             .handle_incoming_event_v1(
                                                                 db, &mut event,
@@ -182,14 +187,26 @@ pub fn spawn_client(db: &'static Database, stream: TcpStream, addr: SocketAddr) 
                                                         }
                                                         .p(channel.clone())
                                                         .await;
+                                                    
+                                                    let notification_payload = format!("User @{} sent a message", user_name);
+                                                    let recipients = vec!["recipient@gmail.com".to_string(), "1234567890".to_string()];
+                                                    queue(recipients.clone(), notification_payload.clone(), NotificationType::Email).await;
+                                                    queue(recipients.clone(), notification_payload.clone(), NotificationType::SMS).await;
+                                                   
                                                     }
                                                     ClientMessage::EndTyping { channel } => {
                                                         EventV1::ChannelStopTyping {
                                                             id: channel.clone(),
-                                                            user: user_id.clone(),
+                                                            user: user_id.clone(),  
                                                         }
                                                         .p(channel.clone())
                                                         .await;
+
+                                                    let notification_payload = format!("User @{} sent a message", user_name);
+                                                    let recipients = vec!["recipient@gmail.com".to_string(), "1234567890".to_string()];
+                                                    queue(recipients.clone(), notification_payload.clone(), NotificationType::Email).await;
+                                                    queue(recipients.clone(), notification_payload.clone(), NotificationType::SMS).await;
+                                                    
                                                     }
                                                     ClientMessage::Ping { data, responded } => {
                                                         if responded.is_none() {

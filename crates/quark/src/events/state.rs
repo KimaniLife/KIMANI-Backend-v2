@@ -31,6 +31,7 @@ pub enum SubscriptionStateChange {
 #[derive(Debug)]
 pub struct Cache {
     pub user_id: String,
+    pub user_name: String,
 
     pub users: HashMap<String, User>,
     pub channels: HashMap<String, Channel>,
@@ -44,6 +45,7 @@ impl Default for Cache {
     fn default() -> Self {
         Cache {
             user_id: Default::default(),
+            user_name: Default::default(),
 
             users: Default::default(),
             channels: Default::default(),
@@ -74,6 +76,7 @@ impl State {
 
         let mut cache: Cache = Cache {
             user_id: user.id.clone(),
+            user_name: user.username.clone(),
             ..Default::default()
         };
 
