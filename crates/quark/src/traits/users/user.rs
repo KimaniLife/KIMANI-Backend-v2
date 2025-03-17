@@ -1,10 +1,13 @@
 use crate::models::user::{FieldsUser, PartialUser, RelationshipStatus, User};
 use crate::Result;
+// use crate::models::Account;
 
 #[async_trait]
 pub trait AbstractUser: Sync + Send {
     /// Fetch a user from the database
     async fn fetch_user(&self, id: &str) -> Result<User>;
+
+    // async fn fetch_user_account(&self, id: &str) -> Result<Account>;
 
     /// Fetch a user from the database by their username
     async fn fetch_user_by_username(&self, username: &str, discriminator: &str) -> Result<User>;

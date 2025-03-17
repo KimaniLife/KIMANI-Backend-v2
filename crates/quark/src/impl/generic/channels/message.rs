@@ -16,7 +16,7 @@ use crate::{
     },
     permissions::PermissionCalculator,
     tasks::ack::AckEvent,
-    tasks::notifications::NotificationType,
+    // tasks::notifications::NotificationType,
     types::{
         january::{Embed, Text},
         push::{MessageAuthor, PushNotification},
@@ -127,13 +127,13 @@ impl Message {
         ))
         .to_string();
 
-        crate::tasks::notifications::queue(
-            target_ids.clone(),
-            payload.clone(),
-            NotificationType::Email,
-        )
-        .await;
-        crate::tasks::notifications::queue(target_ids, payload, NotificationType::SMS).await;
+        // crate::tasks::notifications::queue(
+        //     target_ids.clone(),
+        //     payload.clone(),
+        //     NotificationType::Email,
+        // )
+        // .await;
+        // crate::tasks::notifications::queue(target_ids, payload, NotificationType::SMS).await;
 
         Ok(())
     }

@@ -32,12 +32,15 @@ mod safety {
     pub mod snapshot;
 }
 
+pub mod account;
+
 pub use admin::*;
 pub use channels::*;
 pub use media::*;
 pub use safety::*;
 pub use servers::*;
 pub use users::*;
+pub use account::*;
 
 pub use attachment::File;
 pub use bot::Bot;
@@ -54,3 +57,4 @@ pub use simple::SimpleModel;
 pub use snapshot::Snapshot;
 pub use user::User;
 pub use user_settings::UserSettings;
+pub use account::Account;

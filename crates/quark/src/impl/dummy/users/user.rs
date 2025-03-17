@@ -1,5 +1,6 @@
 use crate::models::user::{FieldsUser, PartialUser, RelationshipStatus, User};
 use crate::{AbstractUser, Result};
+// use crate::models::Account;
 
 use super::super::DummyDb;
 
@@ -13,6 +14,13 @@ impl AbstractUser for DummyDb {
             ..Default::default()
         })
     }
+
+    // async fn fetch_user_account(&self, id: &str) -> Result<Account> {
+    //     Ok(Account {
+    //         id: id.into(),
+    //         email: "email".into(),
+    //     })
+    // }
 
     async fn fetch_user_by_username(&self, username: &str, _discriminator: &str) -> Result<User> {
         self.fetch_user(username).await

@@ -147,7 +147,7 @@ impl MongoDb {
             .await
     }
 
-    async fn find_one_by_id<T: DeserializeOwned + Unpin + Send + Sync>(
+    pub async fn find_one_by_id<T: DeserializeOwned + Unpin + Send + Sync>(
         &self,
         collection: &'static str,
         id: &str,

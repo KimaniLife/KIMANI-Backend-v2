@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::models::{
-    Bot, Channel, Emoji, Invite, Member, Message, Report, Server, ServerBan, User,
+    Bot, Channel, Emoji, Invite, Member, Message, Report, Server, ServerBan, User
 };
 use crate::{Database, Error, Result};
 
@@ -30,6 +30,18 @@ impl Ref {
         user.online = Some(online);
         Ok(user)
     }
+
+    pub async fn as_custom_user(&self, id: &str, db: &Database) -> Result<User> {
+        let (user, online) = join(db.fetch_user(id), is_online(id)).await;
+        let mut user = user?;
+        user.online = Some(online);
+        Ok(user)
+    }
+
+    // / Fetch user account from Ref
+    // pub async fn as_user_account(&self, db: &Database) -> Result<Account> {
+    //     db.fetch_user_account(&self.id).await
+    // }
 
     /// Fetch channel from Ref
     pub async fn as_channel(&self, db: &Database) -> Result<Channel> {

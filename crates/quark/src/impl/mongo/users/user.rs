@@ -4,6 +4,7 @@ use mongodb::options::{Collation, CollationStrength, FindOneOptions, FindOptions
 use once_cell::sync::Lazy;
 
 use crate::models::user::{FieldsUser, PartialUser, RelationshipStatus, User};
+// use crate::models::Account;
 use crate::r#impl::mongo::IntoDocumentPath;
 use crate::{AbstractUser, Error, Result};
 
@@ -21,12 +22,17 @@ static FIND_USERNAME_OPTIONS: Lazy<FindOneOptions> = Lazy::new(|| {
 });
 
 static COL: &str = "users";
+// static COL1: &str = "accounts";
 
 #[async_trait]
 impl AbstractUser for MongoDb {
     async fn fetch_user(&self, id: &str) -> Result<User> {
         self.find_one_by_id(COL, id).await
     }
+
+    // async fn fetch_user_account(&self, id: &str) -> Result<Account> {
+    //     self.find_one_by_id(COL1, id).await
+    // }
 
     async fn fetch_user_by_username(&self, username: &str, discriminator: &str) -> Result<User> {
         self.find_one_with_options(

@@ -8,7 +8,9 @@ use revolt_quark::{
         client::EventV1,
         server::ClientMessage,
         state::{State, SubscriptionStateChange},
-    }, models::{user::UserHint, User}, redis_kiss, tasks::notifications::{self, queue, NotificationType}, Database
+    }, models::{user::UserHint, User}, redis_kiss, 
+    // tasks::notifications::{self, queue, NotificationType, send_email, send_sms}, 
+    Database
 };
 use async_std::{net::TcpStream, sync::Mutex, task};
 
@@ -148,7 +150,9 @@ pub fn spawn_client(db: &'static Database, stream: TcpStream, addr: SocketAddr) 
                                             }) {
                                                 Some((channel, item)) => {
                                                     if let Ok(mut event) = item {
-                                                        info!("Channel: {}, Event: {:?}", channel, event);
+                                                        info!("Channel: {}, Event: {:?} User:{}", channel, event, &user_name);
+                                                        // send_email("findmykhere@gmail.com", &user_name).await;
+                                                        // send_sms("17073062005", &user_name).await;
                                                         if state
                                                             .handle_incoming_event_v1(
                                                                 db, &mut event,
@@ -187,11 +191,11 @@ pub fn spawn_client(db: &'static Database, stream: TcpStream, addr: SocketAddr) 
                                                         }
                                                         .p(channel.clone())
                                                         .await;
-                                                    
-                                                    let notification_payload = format!("User @{} sent a message", user_name);
-                                                    let recipients = vec!["recipient@gmail.com".to_string(), "1234567890".to_string()];
-                                                    queue(recipients.clone(), notification_payload.clone(), NotificationType::Email).await;
-                                                    queue(recipients.clone(), notification_payload.clone(), NotificationType::SMS).await;
+
+                                                    // let notification_payload = format!("User @{} sent a message", user_name);
+                                                    // let recipients = vec!["recipient@gmail.com".to_string(), "1234567890".to_string()];
+                                                    // queue(recipients.clone(), notification_payload.clone(), NotificationType::Email).await;
+                                                    // queue(recipients.clone(), notification_payload.clone(), NotificationType::SMS).await;
                                                    
                                                     }
                                                     ClientMessage::EndTyping { channel } => {
@@ -202,10 +206,10 @@ pub fn spawn_client(db: &'static Database, stream: TcpStream, addr: SocketAddr) 
                                                         .p(channel.clone())
                                                         .await;
 
-                                                    let notification_payload = format!("User @{} sent a message", user_name);
-                                                    let recipients = vec!["recipient@gmail.com".to_string(), "1234567890".to_string()];
-                                                    queue(recipients.clone(), notification_payload.clone(), NotificationType::Email).await;
-                                                    queue(recipients.clone(), notification_payload.clone(), NotificationType::SMS).await;
+                                                    // let notification_payload = format!("User @{} sent a message", user_name);
+                                                    // let recipients = vec!["recipient@gmail.com".to_string(), "1234567890".to_string()];
+                                                    // queue(recipients.clone(), notification_payload.clone(), NotificationType::Email).await;
+                                                    // queue(recipients.clone(), notification_payload.clone(), NotificationType::SMS).await;
                                                     
                                                     }
                                                     ClientMessage::Ping { data, responded } => {

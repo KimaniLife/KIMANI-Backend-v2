@@ -1,7 +1,9 @@
 use crate::Database;
 use deadqueue::limited::Queue;
 use once_cell::sync::Lazy;
-use serde_json::json;
+// use serde_json::json;
+
+// use crate::tasks::email_service::{send_email_via_sendgrid};
 
 /// Type of notification to send
 #[derive(Debug, Clone)]
@@ -44,14 +46,15 @@ pub async fn queue(recipients: Vec<String>, payload: String, notification_type: 
 }
 
 /// Mock function to simulate sending email
-async fn send_email(email: &str, content: &str) {
-    info!("📧 Sending email to {}: {}", email, content);
-}
+// pub async fn send_email(email: &str, content: &str) {
+//     // send_email_via_sendgrid(sender_name, sender_email, recipient_name, recipient_email, content, subject);
+//     info!("Sending email to {} from {}", email, content);
+// }
 
-/// Mock function to simulate sending SMS
-async fn send_sms(phone: &str, content: &str) {
-    info!("📱 Sending SMS to {}: {}", phone, content);
-}
+// /// Mock function to simulate sending SMS
+// pub async fn send_sms(phone: &str, content: &str) {
+//     info!("Sending SMS to {} from {}", phone, content);
+// }
 
 /// Start a notification worker
 pub async fn worker(db: Database) {
