@@ -15,20 +15,10 @@ pub async fn fetch_trips(
     date: Option<String>,
     destination: String,
 ) -> Result<Json<Vec<Trip>>> {
-    eprintln!(
-        "🚀 fetch_trips called with date={:?} destination={} user_id={}",
-        date, destination, user.id
-    );
-
-    // Parse date
     let parsed = date.and_then(|d| d.parse().ok()).unwrap_or_else(Utc::now);
-
-    eprintln!("Parsed date = {}", parsed);
-
     let trips = db
         .fetch_trips_by_date_and_destination(parsed, &destination, &user.id)
         .await?;
 
-    eprintln!("Found {} trips in route", trips.len());
     Ok(Json(trips))
 }

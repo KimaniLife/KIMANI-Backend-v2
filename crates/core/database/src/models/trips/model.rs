@@ -2,7 +2,7 @@ use crate::util::iso_bson_chrono;
 #[cfg(feature = "mongodb")]
 use bson::oid::ObjectId;
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize}; // Adjust path as needed
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "schemars")]
 use schemars::JsonSchema;

@@ -149,9 +149,6 @@ pub trait DatabaseTrait: Sync + Send {
 #[async_trait]
 impl DatabaseTrait for MongoDb {
     async fn insert_trip(&self, trip: &Trip) -> Result<()> {
-        eprintln!("[MongoDb::insert_trip] Inserting trip = {:?}", trip);
-
-        // Create a new trip with an ObjectId and creation date
         let mut new_trip = trip.clone();
         let id = ObjectId::new();
         new_trip.id = Some(id);
@@ -159,10 +156,6 @@ impl DatabaseTrait for MongoDb {
         let collection = self.col::<Trip>("trips");
         match collection.insert_one(&new_trip, None).await {
             Ok(_res) => {
-                eprintln!("[MongoDb::insert_trip] Insert SUCCESS with id: {}", id);
-                eprintln!("[MongoDb::insert_trip] New trip details: {:?}", new_trip);
-
-                // Mark other trips from this user in the same destination as deleted
                 self.mark_user_trips_as_deleted_in_destination(
                     &trip.user_id,
                     &trip.destination,
@@ -172,10 +165,7 @@ impl DatabaseTrait for MongoDb {
 
                 Ok(())
             }
-            Err(err) => {
-                eprintln!("[MongoDb::insert_trip] Insert ERROR: {}", err);
-                Err(create_database_error!("insert", "trips"))
-            }
+            Err(_) => Err(create_database_error!("insert", "trips")),
         }
     }
 
@@ -185,36 +175,22 @@ impl DatabaseTrait for MongoDb {
         destination: &str,
         current_user_id: &str,
     ) -> Result<Vec<Trip>> {
-        eprintln!(
-            "[MongoDb::fetch_trips_by_date_and_destination] date = {}, destination = {}",
-            date, destination
-        );
-
-        // Get the start of the current day in UTC
         let today = Utc::now().date().and_hms(0, 0, 0);
         let today_bson = BsonDateTime::from_chrono(today);
 
-        eprintln!(
-            "[MongoDb] Filtering trips after date: {} (BSON: {:?})",
-            today, today_bson
-        );
-
         let collection = self.col::<Trip>("trips");
 
-        // Create the aggregation pipeline
         let pipeline = vec![
-            // Match stage - filter trips
             doc! {
                 "$match": {
                     "destination": destination,
-                    "start_date": { "$gte": today_bson },  // Only show trips that start today or later
+                    "start_date": { "$gte": today_bson },
                     "$or": [
                         { "deletion_date": { "$exists": false } },
                         { "deletion_date": null }
                     ]
                 }
             },
-            // Add a field for sorting user's trips first (as a number)
             doc! {
                 "$addFields": {
                     "sortOrder": {
@@ -230,14 +206,12 @@ impl DatabaseTrait for MongoDb {
                     }
                 }
             },
-            // Sort stage
             doc! {
                 "$sort": {
                     "sortOrder": 1,
                     "end_date": 1
                 }
             },
-            // Project stage to remove the added fields
             doc! {
                 "$project": {
                     "sortOrder": 0
@@ -245,52 +219,20 @@ impl DatabaseTrait for MongoDb {
             },
         ];
 
-        eprintln!("[MongoDb] Using pipeline: {:?}", pipeline);
-
-        let mut cursor = match collection.aggregate(pipeline, None).await {
-            Ok(cur) => {
-                eprintln!("[MongoDb] aggregate() SUCCESS, got a cursor");
-                cur
-            }
-            Err(err) => {
-                eprintln!("[MongoDb] aggregate() ERROR: {}", err);
-                return Err(create_database_error!("find", "trips"));
-            }
-        };
+        let mut cursor = collection
+            .aggregate(pipeline, None)
+            .await
+            .map_err(|_| create_database_error!("find", "trips"))?;
 
         let mut trips = Vec::new();
 
         while let Some(doc) = cursor.next().await {
-            match doc {
-                Ok(doc) => {
-                    // Log the debug info
-                    if let Some(debug) = doc.get("debug") {
-                        eprintln!("[MongoDb] Debug info for matched document: {:?}", debug);
-                    }
-
-                    // Convert BSON document back to Trip
-                    match bson::from_document(doc) {
-                        Ok(trip) => {
-                            eprintln!("[MongoDb] Found doc => {:?}", trip);
-                            trips.push(trip);
-                        }
-                        Err(err) => {
-                            eprintln!("[MongoDb] Document conversion error: {}", err);
-                        }
-                    }
-                }
-                Err(err) => {
-                    eprintln!("[MongoDb] Cursor read error: {}", err);
+            if let Ok(doc) = doc {
+                if let Ok(trip) = bson::from_document(doc) {
+                    trips.push(trip);
                 }
             }
         }
-
-        eprintln!(
-            "[MongoDb] Found {} trip(s) matching date={} destination={}",
-            trips.len(),
-            date,
-            destination
-        );
 
         Ok(trips)
     }
@@ -370,10 +312,7 @@ impl DatabaseTrait for MongoDb {
                     Ok(())
                 }
             }
-            Err(err) => {
-                eprintln!("[MongoDb::delete_trip] Update error: {}", err);
-                Err(create_database_error!("update", "trips"))
-            }
+            Err(err) => Err(create_database_error!("update", "trips")),
         }
     }
 
@@ -385,10 +324,7 @@ impl DatabaseTrait for MongoDb {
         let collection = self.col::<TripComment>("trip_comments");
         match collection.insert_one(&new_comment, None).await {
             Ok(_) => Ok(()),
-            Err(err) => {
-                eprintln!("[MongoDb::create_trip_comment] Insert ERROR: {}", err);
-                Err(create_database_error!("insert", "trip_comments"))
-            }
+            Err(err) => Err(create_database_error!("insert", "trip_comments")),
         }
     }
 
@@ -451,10 +387,7 @@ impl DatabaseTrait for MongoDb {
                         comments.push(comment);
                     }
                 }
-                Err(err) => {
-                    eprintln!("[MongoDb::fetch_trip_comments] Cursor error: {}", err);
-                    return Err(create_database_error!("find", "trip_comments"));
-                }
+                Err(_) => return Err(create_database_error!("find", "trip_comments")),
             }
         }
 
@@ -470,13 +403,8 @@ impl DatabaseTrait for MongoDb {
 impl DatabaseTrait for Database {
     async fn insert_trip(&self, trip: &Trip) -> Result<()> {
         match self {
-            Database::MongoDb(mongo) => {
-                eprintln!("[Database::insert_trip -> MongoDb] delegating...");
-                mongo.insert_trip(trip).await
-            }
+            Database::MongoDb(mongo) => mongo.insert_trip(trip).await,
             Database::Reference(_mock) => {
-                // If you have a mock/Reference variant, either implement or unimplemented!()
-                eprintln!("[Database::insert_trip -> Reference] unimplemented");
                 unimplemented!("Reference DB not implemented for insert_trip.")
             }
         }
@@ -490,13 +418,11 @@ impl DatabaseTrait for Database {
     ) -> Result<Vec<Trip>> {
         match self {
             Database::MongoDb(mongo) => {
-                eprintln!("[Database::fetch_trips -> MongoDb] delegating...");
                 mongo
                     .fetch_trips_by_date_and_destination(date, destination, current_user_id)
                     .await
             }
             Database::Reference(_mock) => {
-                eprintln!("[Database::fetch_trips -> Reference] unimplemented");
                 unimplemented!(
                     "Reference DB not implemented for fetch_trips_by_date_and_destination."
                 )
@@ -517,7 +443,6 @@ impl DatabaseTrait for Database {
                     .await
             }
             Database::Reference(_mock) => {
-                eprintln!("[Database::mark_user_trips_as_deleted -> Reference] unimplemented");
                 unimplemented!("Reference DB not implemented for mark_user_trips_as_deleted.")
             }
         }
@@ -527,7 +452,6 @@ impl DatabaseTrait for Database {
         match self {
             Database::MongoDb(mongo) => mongo.delete_trip(trip_id, user_id).await,
             Database::Reference(_mock) => {
-                eprintln!("[Database::delete_trip -> Reference] unimplemented");
                 unimplemented!("Reference DB not implemented for delete_trip.")
             }
         }
@@ -537,7 +461,6 @@ impl DatabaseTrait for Database {
         match self {
             Database::MongoDb(mongo) => mongo.create_trip_comment(comment).await,
             Database::Reference(_mock) => {
-                eprintln!("[Database::create_trip_comment -> Reference] unimplemented");
                 unimplemented!("Reference DB not implemented for create_trip_comment.")
             }
         }
@@ -555,7 +478,6 @@ impl DatabaseTrait for Database {
                     .await
             }
             Database::Reference(_mock) => {
-                eprintln!("[Database::fetch_trip_comments -> Reference] unimplemented");
                 unimplemented!("Reference DB not implemented for fetch_trip_comments.")
             }
         }

@@ -12,11 +12,14 @@ use rocket::{post, State};
 /// Creates a new trip using the authenticated user's ID.
 #[openapi]
 #[post("/create", format = "json", data = "<trip>")]
-pub async fn create_trip(db: &State<Database>, user: User, mut trip: Json<Trip>) -> Result<Status> {
-    trip.0.user_id = user.id;
+pub async fn create_trip(db: &State<Database>, user: User, trip: Json<Trip>) -> Result<Status> {
+    let trip = Trip {
+        user_id: user.id,
+        ..trip.into_inner()
+    };
 
     // Insert trip will handle marking other trips as deleted
-    db.insert_trip(&trip.0).await?;
+    db.insert_trip(&trip).await?;
 
     Ok(Status::Created)
 }
