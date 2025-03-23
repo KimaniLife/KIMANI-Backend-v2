@@ -1,3 +1,4 @@
+use crate::models::attachment::File;
 use serde::{Deserialize, Serialize};
 
 pub fn if_false(t: &bool) -> bool {
@@ -5,6 +6,13 @@ pub fn if_false(t: &bool) -> bool {
 }
 
 /// Representation of an event
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
+pub struct EventHost {
+    pub id: String,
+    pub username: String,
+    pub avatar: Option<File>,
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, OptionalStruct, Default)]
 #[optional_derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]
 #[optional_name = "PartialEvent"]
@@ -69,12 +77,21 @@ pub struct Event {
     #[serde(skip_serializing_if = "if_false", default)]
     pub show_to_non_members: bool,
 
-    /// Event managers (user IDs)
-    pub managers: Vec<String>,
+    /// Event hosts with their details
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub hosts: Vec<String>,
 
-    /// Event sponsors (user IDs)
+    /// Resolved host details
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host_details: Option<Vec<EventHost>>,
+
+    /// Event sponsors with their details
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub sponsors: Vec<String>,
+
+    /// Resolved sponsor details
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sponsor_details: Option<Vec<EventHost>>,
 
     /// Ticket configuration
     pub ticket_config: TicketConfig,

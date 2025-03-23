@@ -25,7 +25,7 @@ impl From<DataEditEvent> for PartialEvent {
             requires_plus_one_info: data.requires_plus_one_info,
             requires_rsvp_approval: data.requires_rsvp_approval,
             show_to_non_members: data.show_to_non_members,
-            managers: data.managers,
+            hosts: data.hosts,
             sponsors: data.sponsors,
             ticket_config: data.ticket_config,
             currency: data.currency,
@@ -33,6 +33,8 @@ impl From<DataEditEvent> for PartialEvent {
             attachments: data.attachments,
             gallery: data.gallery,
             is_saved: None,
+            host_details: None,
+            sponsor_details: None,
         }
     }
 }
@@ -52,7 +54,7 @@ pub struct DataEditEvent {
     pub requires_plus_one_info: Option<bool>,
     pub requires_rsvp_approval: Option<bool>,
     pub show_to_non_members: Option<bool>,
-    pub managers: Option<Vec<String>>,
+    pub hosts: Option<Vec<String>>,
     pub sponsors: Option<Vec<String>>,
     pub ticket_config: Option<TicketConfig>,
     /// Attachment URLs

@@ -1,8 +1,9 @@
 use iso8601_timestamp::Timestamp;
 use mongodb::bson::doc;
 
-use crate::models::event::{Event, PartialEvent};
+use crate::models::event::{Event, EventHost, PartialEvent};
 use crate::models::saved_event::SavedEvent;
+use crate::models::user::User;
 use crate::{AbstractEvents, Error, Result};
 
 use super::super::MongoDb;
@@ -14,12 +15,20 @@ static SAVED_EVENTS_COL: &str = "saved_events";
 impl AbstractEvents for MongoDb {
     async fn fetch_event(&self, user_id: Option<&str>, id: &str) -> Result<Event> {
         let mut event: Event = self.find_one_by_id(COL, id).await?;
+
+        // Fetch host details
+        let host_details = fetch_user_details(self, &event.hosts).await?;
+        event.host_details = Some(host_details);
+
+        // Fetch sponsor details
+        let sponsor_details = fetch_user_details(self, &event.sponsors).await?;
+        event.sponsor_details = Some(sponsor_details);
+
+        // Check saved status
         if let Some(user_id) = user_id {
-            // Get all saved event IDs for this user
             event.is_saved = Some(self.is_event_saved(user_id, id).await?);
-        } else {
-            event.is_saved = None; // Will be populated by API layer
         }
+
         Ok(event)
     }
     async fn insert_event(&self, event: &Event) -> Result<()> {
@@ -42,23 +51,19 @@ impl AbstractEvents for MongoDb {
     ) -> Result<Vec<Event>> {
         let mut events: Vec<Event> = self.find("events", doc! {}).await?;
 
-        if let Some(user_id) = user_id {
-            // Get all saved event IDs for this user
-            let saved_events = self
-                .find(SAVED_EVENTS_COL, doc! { "user_id": user_id })
-                .await?;
+        for event in &mut events {
+            // Fetch host details
+            let host_details = fetch_user_details(self, &event.hosts).await?;
+            event.host_details = Some(host_details);
 
-            let saved_ids: Vec<String> = saved_events
-                .iter()
-                .map(|s: &SavedEvent| s.event_id.clone())
-                .collect();
+            // Fetch sponsor details
+            let sponsor_details = fetch_user_details(self, &event.sponsors).await?;
+            event.sponsor_details = Some(sponsor_details);
 
-            // Update is_saved flag for each event
-            for event in &mut events {
-                event.is_saved = Some(saved_ids.contains(&event.id));
-            }
-        } else {
-            for event in &mut events {
+            // Set saved status
+            if let Some(user_id) = user_id {
+                event.is_saved = Some(self.is_event_saved(user_id, &event.id).await?);
+            } else {
                 event.is_saved = None;
             }
         }
@@ -125,6 +130,12 @@ impl AbstractEvents for MongoDb {
 
             // Set is_saved to true since these are saved events
             for event in &mut events {
+                let host_details = fetch_user_details(self, &event.hosts).await?;
+                event.host_details = Some(host_details);
+
+                // Fetch sponsor details
+                let sponsor_details = fetch_user_details(self, &event.sponsors).await?;
+                event.sponsor_details = Some(sponsor_details);
                 event.is_saved = Some(true);
             }
 
@@ -133,6 +144,38 @@ impl AbstractEvents for MongoDb {
     }
 
     async fn get_user_events(&self, user_id: &str) -> Result<Vec<Event>> {
-        self.find(COL, doc! { "created_by": user_id }).await
+        let mut events: Vec<Event> = self.find(COL, doc! { "created_by": user_id }).await?;
+
+        for event in &mut events {
+            // Fetch host details
+            let host_details = fetch_user_details(self, &event.hosts).await?;
+            event.host_details = Some(host_details);
+
+            // Fetch sponsor details
+            let sponsor_details = fetch_user_details(self, &event.sponsors).await?;
+            event.sponsor_details = Some(sponsor_details);
+
+            // Set saved status
+            event.is_saved = Some(self.is_event_saved(user_id, &event.id).await?);
+        }
+
+        Ok(events)
     }
+}
+
+// Helper function to fetch user details
+async fn fetch_user_details(db: &MongoDb, user_ids: &[String]) -> Result<Vec<EventHost>> {
+    let mut hosts = Vec::new();
+
+    for id in user_ids {
+        if let Ok(user) = db.find_one::<User>("users", doc! { "_id": id }).await {
+            hosts.push(EventHost {
+                id: user.id,
+                username: user.username,
+                avatar: user.avatar,
+            });
+        }
+    }
+
+    Ok(hosts)
 }

@@ -45,8 +45,8 @@ pub struct DataCreateEvent {
     /// Show events to non-members
     #[serde(default)]
     pub show_to_non_members: bool,
-    /// Event managers (user IDs)
-    pub managers: Vec<String>,
+    /// Event hosts (user IDs)
+    pub hosts: Vec<String>,
     /// Event sponsors (user IDs)
     #[serde(default)]
     pub sponsors: Vec<String>,
@@ -114,7 +114,7 @@ pub async fn create_event(
         requires_plus_one_info: data.requires_plus_one_info,
         requires_rsvp_approval: data.requires_rsvp_approval,
         show_to_non_members: data.show_to_non_members,
-        managers: data.managers.clone(),
+        hosts: data.hosts.clone(),
         sponsors: data.sponsors.clone(),
         currency: data.currency.clone(),
         payment_type: data.payment_type.clone(),
@@ -123,6 +123,8 @@ pub async fn create_event(
         gallery: data.gallery.clone(),
         created_at: date,
         is_saved: None,
+        host_details: None,
+        sponsor_details: None,
     };
 
     db.insert_event(&event).await?;
