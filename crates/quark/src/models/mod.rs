@@ -31,8 +31,9 @@ mod safety {
     pub mod snapshot;
 }
 
-mod events {
+pub mod events {
     pub mod event;
+    pub mod guest;
     pub mod saved_event;
 }
 

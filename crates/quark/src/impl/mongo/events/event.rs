@@ -1,15 +1,18 @@
-use iso8601_timestamp::Timestamp;
-use mongodb::bson::doc;
-
+use crate::models::event::EventGuestStats;
 use crate::models::event::{Event, EventHost, PartialEvent};
+use crate::models::guest::{EventGuest, GuestStatus};
 use crate::models::saved_event::SavedEvent;
 use crate::models::user::User;
 use crate::{AbstractEvents, Error, Result};
+use bson::Document;
+use iso8601_timestamp::Timestamp;
+use mongodb::bson::doc;
 
 use super::super::MongoDb;
 
 static COL: &str = "events";
 static SAVED_EVENTS_COL: &str = "saved_events";
+static GUESTS_COL: &str = "event_guests";
 
 #[async_trait]
 impl AbstractEvents for MongoDb {
@@ -23,6 +26,29 @@ impl AbstractEvents for MongoDb {
         // Fetch sponsor details
         let sponsor_details = fetch_user_details(self, &event.sponsors).await?;
         event.sponsor_details = Some(sponsor_details);
+
+        // Fetch guest statistics
+        let guests = self
+            .find::<EventGuest>(GUESTS_COL, doc! { "event_id": &event.id })
+            .await?;
+
+        let stats = EventGuestStats {
+            total_invited: guests.len() as i32,
+            total_going: guests
+                .iter()
+                .filter(|g| matches!(g.status, GuestStatus::Approved))
+                .count() as i32,
+            total_pending: guests
+                .iter()
+                .filter(|g| matches!(g.status, GuestStatus::Pending))
+                .count() as i32,
+            total_rejected: guests
+                .iter()
+                .filter(|g| matches!(g.status, GuestStatus::Rejected))
+                .count() as i32,
+        };
+
+        event.guest_stats = Some(stats);
 
         // Check saved status
         if let Some(user_id) = user_id {
@@ -49,7 +75,11 @@ impl AbstractEvents for MongoDb {
         user_id: Option<&str>,
         ids: &'a [String],
     ) -> Result<Vec<Event>> {
-        let mut events: Vec<Event> = self.find("events", doc! {}).await?;
+        let mut events: Vec<Event> = if ids.is_empty() {
+            self.find("events", doc! {}).await?
+        } else {
+            self.find("events", doc! { "_id": { "$in": ids } }).await?
+        };
 
         for event in &mut events {
             // Fetch host details
@@ -160,6 +190,41 @@ impl AbstractEvents for MongoDb {
         }
 
         Ok(events)
+    }
+
+    async fn add_guest(&self, guest: &EventGuest) -> Result<()> {
+        self.insert_one(GUESTS_COL, guest).await.map(|_| ())
+    }
+
+    async fn update_guest_status(
+        &self,
+        event_id: &str,
+        guest_id: &str,
+        status: GuestStatus,
+    ) -> Result<()> {
+        let status_str: String = status.into();
+        self.col::<Document>(GUESTS_COL)
+            .update_one(
+                doc! { "_id": guest_id, "event_id": event_id },
+                doc! { "$set": { "status": status_str } },
+                None,
+            )
+            .await
+            .map_err(|_| Error::DatabaseError {
+                operation: "update_one",
+                with: GUESTS_COL,
+            })?;
+        Ok(())
+    }
+
+    async fn get_event_guests(&self, event_id: &str) -> Result<Vec<EventGuest>> {
+        self.find(GUESTS_COL, doc! { "event_id": event_id }).await
+    }
+
+    async fn get_guest(&self, event_id: &str, guest_id: &str) -> Result<()> {
+        self.find_one::<EventGuest>(GUESTS_COL, doc! { "_id": guest_id, "event_id": event_id })
+            .await
+            .map(|_| ())
     }
 }
 

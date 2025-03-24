@@ -1,4 +1,6 @@
 use crate::models::event::{Event, PartialEvent};
+use crate::models::events::guest::{EventGuest, GuestStatus};
+use crate::models::user::User;
 use crate::{AbstractEvents, Error, Result};
 
 use super::super::DummyDb;
@@ -38,5 +40,21 @@ impl AbstractEvents for DummyDb {
 
     async fn get_user_events(&self, _: &str) -> Result<Vec<Event>> {
         Ok(vec![])
+    }
+
+    async fn add_guest(&self, _: &EventGuest) -> Result<()> {
+        Ok(())
+    }
+
+    async fn update_guest_status(&self, _: &str, _: &str, _: GuestStatus) -> Result<()> {
+        Ok(())
+    }
+
+    async fn get_event_guests(&self, _: &str) -> Result<Vec<EventGuest>> {
+        Ok(vec![])
+    }
+
+    async fn get_guest(&self, _: &str, _: &str) -> Result<()> {
+        Ok(())
     }
 }

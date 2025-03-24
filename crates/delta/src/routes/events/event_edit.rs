@@ -35,6 +35,8 @@ impl From<DataEditEvent> for PartialEvent {
             is_saved: None,
             host_details: None,
             sponsor_details: None,
+            guests: None,
+            guest_stats: None,
         }
     }
 }

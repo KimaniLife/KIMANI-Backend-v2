@@ -125,6 +125,8 @@ pub async fn create_event(
         is_saved: None,
         host_details: None,
         sponsor_details: None,
+        guests: None,
+        guest_stats: None,
     };
 
     db.insert_event(&event).await?;

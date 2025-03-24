@@ -5,6 +5,7 @@ mod event_create;
 mod event_delete;
 mod event_edit;
 mod event_fetch;
+mod event_guests;
 mod event_list;
 mod event_saved;
 
@@ -18,5 +19,10 @@ pub fn routes() -> (Vec<Route>, OpenApi) {
         event_saved::toggle_saved_event,
         event_saved::get_saved_events,
         event_list::get_created_events,
+        event_guests::add_guest,
+        event_guests::get_event_guests,
+        event_guests::get_guest,
+        event_guests::add_bulk_guests,
+        event_guests::update_bulk_guest_status,
     ]
 }

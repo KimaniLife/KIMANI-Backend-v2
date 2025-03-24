@@ -1,4 +1,5 @@
 use crate::models::attachment::File;
+use crate::models::events::guest::EventGuest;
 use serde::{Deserialize, Serialize};
 
 pub fn if_false(t: &bool) -> bool {
@@ -11,6 +12,14 @@ pub struct EventHost {
     pub id: String,
     pub username: String,
     pub avatar: Option<File>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
+pub struct EventGuestStats {
+    pub total_invited: i32,
+    pub total_going: i32,
+    pub total_pending: i32,
+    pub total_rejected: i32,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, OptionalStruct, Default)]
@@ -118,6 +127,14 @@ pub struct Event {
 
     /// Creation timestamp
     pub created_at: String,
+
+    /// List of guests
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub guests: Option<Vec<EventGuest>>,
+
+    /// Guest statistics
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub guest_stats: Option<EventGuestStats>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
