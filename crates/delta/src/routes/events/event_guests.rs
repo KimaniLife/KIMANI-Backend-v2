@@ -1,6 +1,13 @@
-use revolt_quark::models::events::guest::{EventGuest, GuestStatus};
-use revolt_quark::models::user::User;
-use revolt_quark::{Database, Error, Result};
+use revolt_quark::authifier::config::{EmailVerificationConfig, Template};
+use revolt_quark::authifier::Authifier;
+use revolt_quark::{
+    models::channels::channel::Channel,
+    models::channels::message::Message,
+    models::events::guest::{EventGuest, GuestStatus},
+    models::user::User,
+    variables::delta::APP_URL,
+    Database, Error, Result,
+};
 use rocket::{serde::json::Json, State};
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
@@ -61,6 +68,30 @@ pub struct GuestStatusUpdate {
 pub struct BulkStatusUpdate {
     /// List of guest status updates
     pub updates: Vec<GuestStatusUpdate>,
+}
+
+#[derive(Validate, Deserialize, JsonSchema)]
+pub struct BulkMessageData {
+    /// List of messages to send
+    pub messages: Vec<UserMessage>,
+}
+
+#[derive(Validate, Deserialize, JsonSchema)]
+pub struct UserMessage {
+    /// User ID to send message to
+    pub user_id: String,
+    /// Message content
+    #[validate(length(min = 1, max = 2000))]
+    pub content: String,
+}
+
+#[derive(Validate, Deserialize, JsonSchema)]
+pub struct GuestMessageData {
+    /// Message content to send
+    #[validate(length(min = 1, max = 2000))]
+    pub content: String,
+    /// Guest statuses to filter by
+    pub statuses: Vec<GuestStatus>,
 }
 
 /// Add a guest to an event
@@ -223,6 +254,149 @@ pub async fn add_bulk_guests(
     Ok(Json(BulkGuestResponse {
         guests: created_guests,
     }))
+}
+
+/// Send DM messages to multiple users
+#[openapi(tag = "Events")]
+#[post("/<event_id>/guests/message", data = "<data>")]
+pub async fn send_bulk_messages(
+    db: &State<Database>,
+    user: User,
+    event_id: String,
+    data: Json<BulkMessageData>,
+) -> Result<Json<()>> {
+    let data = data.into_inner();
+
+    // Verify sender is event owner or host
+    let event = db.fetch_event(Some(&user.id), &event_id).await?;
+    if event.created_by.as_deref() != Some(&user.id) && !event.hosts.contains(&user.id) {
+        return Err(Error::NotFound);
+    }
+
+    // Send messages
+    for message in data.messages {
+        // Find or create DM channel
+        let channel = if let Ok(channel) = db
+            .find_direct_message_channel(&user.id, &message.user_id)
+            .await
+        {
+            channel
+        } else {
+            let new_channel = Channel::DirectMessage {
+                id: Ulid::new().to_string(),
+                active: false,
+                recipients: vec![user.id.clone(), message.user_id.clone()],
+                last_message_id: None,
+            };
+
+            new_channel.create(db).await?;
+            new_channel
+        };
+
+        // Send the message
+        let msg = Message {
+            id: Ulid::new().to_string(),
+            channel: channel.id().to_string(),
+            author: user.id.clone(),
+            content: Some(message.content),
+            ..Default::default()
+        };
+
+        db.insert_message(&msg).await?;
+    }
+
+    Ok(Json(()))
+}
+
+/// Send messages to guests filtered by status
+#[openapi(tag = "Events")]
+#[post("/<event_id>/guests/notify", data = "<data>")]
+pub async fn notify_guests(
+    authifier: &State<Authifier>,
+    db: &State<Database>,
+    user: User,
+    event_id: String,
+    data: Json<GuestMessageData>,
+) -> Result<Json<()>> {
+    let data = data.into_inner();
+
+    // Verify sender is event owner or host
+    let event = db.fetch_event(Some(&user.id), &event_id).await?;
+    if event.created_by.as_deref() != Some(&user.id) && !event.hosts.contains(&user.id) {
+        return Err(Error::NotFound);
+    }
+
+    // Get all guests for this event with matching statuses
+    let guests = db.get_event_guests(&event_id).await?;
+    let filtered_guests: Vec<&EventGuest> = guests
+        .iter()
+        .filter(|g| data.statuses.contains(&g.status.clone()))
+        .collect();
+
+    // Process each guest
+    for guest in filtered_guests {
+        if let Some(user_id) = &guest.user_id {
+            // Find or create DM channel and send message
+            let channel =
+                if let Ok(channel) = db.find_direct_message_channel(&user.id, user_id).await {
+                    channel
+                } else {
+                    let new_channel = Channel::DirectMessage {
+                        id: Ulid::new().to_string(),
+                        active: false,
+                        recipients: vec![user.id.clone(), user_id.clone()],
+                        last_message_id: None,
+                    };
+
+                    new_channel.create(db).await?;
+                    new_channel
+                };
+
+            // Send DM
+            let msg = Message {
+                id: Ulid::new().to_string(),
+                channel: channel.id().to_string(),
+                author: user.id.clone(),
+                content: Some(data.content.clone()),
+                ..Default::default()
+            };
+
+            db.insert_message(&msg).await?;
+        } else if let EmailVerificationConfig::Enabled {
+            templates,
+            expiry,
+            smtp,
+        } = &authifier.config.email_verification
+        {
+            smtp.send_email(
+                guest.email.clone(),
+                &Template {
+                    title: format!("Notification from event - {}", event.title),
+                    text: include_str!(concat!(
+                        env!("CARGO_MANIFEST_DIR"),
+                        "/assets/templates/event.txt"
+                    ))
+                    .into(),
+                    url: format!("{}/events/view/{}", *APP_URL, event_id),
+                    html: Some(
+                        include_str!(concat!(
+                            env!("CARGO_MANIFEST_DIR"),
+                            "/assets/templates/event.html"
+                        ))
+                        .into(),
+                    ),
+                },
+                json!({
+                    "email": guest.email.clone(),
+                    "url": format!("{}/events/view/{}", *APP_URL, event_id),
+                    "title": event.title.clone(),
+                    "content": data.content.clone(),
+                }),
+            );
+        }
+    }
+
+    Ok(Json(()))
 }
 
 // Helper function to convert validation errors to strings

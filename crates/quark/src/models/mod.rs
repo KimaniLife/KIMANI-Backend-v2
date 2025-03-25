@@ -8,7 +8,7 @@ mod media {
     pub mod emoji;
 }
 
-mod channels {
+pub mod channels {
     pub mod channel;
     pub mod channel_invite;
     pub mod channel_unread;

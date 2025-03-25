@@ -24,5 +24,7 @@ pub fn routes() -> (Vec<Route>, OpenApi) {
         event_guests::get_guest,
         event_guests::add_bulk_guests,
         event_guests::update_bulk_guest_status,
+        event_guests::send_bulk_messages,
+        event_guests::notify_guests,
     ]
 }

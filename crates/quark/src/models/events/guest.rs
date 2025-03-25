@@ -41,7 +41,7 @@ pub struct EventGuest {
     pub created_at: String,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 #[serde(into = "String", from = "String")]
 pub enum GuestStatus {
