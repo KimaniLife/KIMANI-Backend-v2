@@ -9,6 +9,7 @@ mod bots;
 mod channels;
 mod customisation;
 mod events;
+mod invite_user;
 mod invites;
 mod onboard;
 mod push;
@@ -45,6 +46,7 @@ pub fn mount(mut rocket: Rocket<Build>) -> Rocket<Build> {
             "/webhooks" => webhooks::routes(),
             "/trips" => trips::routes(),
             "/events" => events::routes(),
+            "/invite_user" => invite_user::routes(),
         };
     } else {
         mount_endpoints_and_merged_docs! {
@@ -69,6 +71,7 @@ pub fn mount(mut rocket: Rocket<Build>) -> Rocket<Build> {
             "/webhooks" => webhooks::routes(),
             "/trips" => trips::routes(),
             "/events" => events::routes(),
+            "/invite_user" => invite_user::routes(),
         };
     }
 

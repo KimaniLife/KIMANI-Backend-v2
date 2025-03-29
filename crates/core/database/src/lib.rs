@@ -26,6 +26,8 @@ use futures::stream::StreamExt;
 #[macro_use]
 extern crate bson;
 
+use crate::models::invite_user::model::InvitationToken;
+use crate::models::invite_user::AbstractInviteTokens;
 use crate::models::trips::model::{Trip, TripComment};
 
 macro_rules! database_derived {
@@ -140,6 +142,8 @@ pub trait DatabaseTrait: Sync + Send {
         trip_id: ObjectId,
         destination: &str,
     ) -> Result<Vec<TripComment>>;
+    /// Generate a new invitation token
+    async fn generate_invite_token(&self, creator_id: String) -> Result<InvitationToken>;
 }
 
 // ----------------------------------------------------------------------------
@@ -393,6 +397,11 @@ impl DatabaseTrait for MongoDb {
 
         Ok(comments)
     }
+
+    /// Generate a new invitation token
+    async fn generate_invite_token(&self, creator_id: String) -> Result<InvitationToken> {
+        AbstractInviteTokens::generate_invite_token(self, creator_id).await
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -479,6 +488,16 @@ impl DatabaseTrait for Database {
             }
             Database::Reference(_mock) => {
                 unimplemented!("Reference DB not implemented for fetch_trip_comments.")
+            }
+        }
+    }
+
+    /// Generate a new invitation token
+    async fn generate_invite_token(&self, creator_id: String) -> Result<InvitationToken> {
+        match self {
+            Database::MongoDb(mongo) => mongo.generate_invite_token(creator_id).await,
+            Database::Reference(_mock) => {
+                unimplemented!("Reference DB not implemented for generate_invite_token.")
             }
         }
     }
