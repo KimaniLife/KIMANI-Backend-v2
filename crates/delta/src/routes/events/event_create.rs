@@ -64,6 +64,8 @@ pub struct DataCreateEvent {
     /// Gallery image URLs
     #[serde(default)]
     pub gallery: Vec<String>,
+    /// Thumbnail image ID
+    pub thumbnail: Option<String>,
 }
 
 /// Create a new event
@@ -121,6 +123,7 @@ pub async fn create_event(
         ticket_config: data.ticket_config.clone(),
         attachments: data.attachments.clone(),
         gallery: data.gallery.clone(),
+        thumbnail: data.thumbnail,
         created_at: date,
         is_saved: None,
         host_details: None,

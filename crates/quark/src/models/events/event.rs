@@ -135,6 +135,10 @@ pub struct Event {
     /// Guest statistics
     #[serde(skip_serializing_if = "Option::is_none")]
     pub guest_stats: Option<EventGuestStats>,
+
+    /// Thumbnail image ID
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thumbnail: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]

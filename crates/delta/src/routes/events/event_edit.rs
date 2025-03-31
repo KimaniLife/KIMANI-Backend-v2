@@ -37,6 +37,7 @@ impl From<DataEditEvent> for PartialEvent {
             sponsor_details: None,
             guests: None,
             guest_stats: None,
+            thumbnail: data.thumbnail,
         }
     }
 }
@@ -65,6 +66,8 @@ pub struct DataEditEvent {
     pub gallery: Option<Vec<String>>,
     pub currency: Option<String>,
     pub payment_type: Option<String>,
+    /// Thumbnail image ID
+    pub thumbnail: Option<String>,
 }
 
 /// Update event
