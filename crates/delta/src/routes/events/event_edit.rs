@@ -38,6 +38,7 @@ impl From<DataEditEvent> for PartialEvent {
             guests: None,
             guest_stats: None,
             thumbnail: data.thumbnail,
+            country: data.country,
         }
     }
 }
@@ -68,6 +69,8 @@ pub struct DataEditEvent {
     pub payment_type: Option<String>,
     /// Thumbnail image ID
     pub thumbnail: Option<String>,
+    /// Country where event is held
+    pub country: Option<String>,
 }
 
 /// Update event

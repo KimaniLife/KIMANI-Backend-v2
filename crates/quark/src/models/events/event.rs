@@ -52,6 +52,9 @@ pub struct Event {
     /// City where event is held
     pub city: String,
 
+    /// Country where event is held
+    pub country: String,
+
     /// Whether the event is public or private
     #[serde(skip_serializing_if = "if_false", default)]
     pub hide_address: bool,

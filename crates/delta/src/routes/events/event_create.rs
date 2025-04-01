@@ -66,6 +66,8 @@ pub struct DataCreateEvent {
     pub gallery: Vec<String>,
     /// Thumbnail image ID
     pub thumbnail: Option<String>,
+    /// Country where event is held
+    pub country: String,
 }
 
 /// Create a new event
@@ -124,6 +126,7 @@ pub async fn create_event(
         attachments: data.attachments.clone(),
         gallery: data.gallery.clone(),
         thumbnail: data.thumbnail,
+        country: data.country.clone(),
         created_at: date,
         is_saved: None,
         host_details: None,
