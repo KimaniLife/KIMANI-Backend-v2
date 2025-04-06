@@ -5,6 +5,7 @@ use revolt_quark::{
     models::channels::message::Message,
     models::events::guest::{EventGuest, GuestStatus},
     models::user::User,
+    types::push::MessageAuthor,
     variables::delta::APP_URL,
     Database, Error, Result,
 };
@@ -384,7 +385,7 @@ pub async fn send_bulk_messages(
         };
 
         // Send the message
-        let msg = Message {
+        let mut msg = Message {
             id: Ulid::new().to_string(),
             channel: channel.id().to_string(),
             author: user.id.clone(),
@@ -398,7 +399,9 @@ pub async fn send_bulk_messages(
             ..Default::default()
         };
 
-        db.insert_message(&msg).await?;
+        // Create the message with proper notification handling
+        msg.create(db, &channel, Some(MessageAuthor::User(&user)))
+            .await?;
 
         // Update channel as active if it wasn't already
         if let Channel::DirectMessage { active, .. } = &channel {
