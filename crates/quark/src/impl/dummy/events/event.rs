@@ -54,7 +54,7 @@ impl AbstractEvents for DummyDb {
         Ok(vec![])
     }
 
-    async fn get_guest(&self, _: &str, _: &str) -> Result<()> {
-        Ok(())
+    async fn get_guest(&self, _: &str, _: &str) -> Result<EventGuest> {
+        Err(Error::NotFound)
     }
 }

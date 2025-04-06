@@ -221,10 +221,9 @@ impl AbstractEvents for MongoDb {
         self.find(GUESTS_COL, doc! { "event_id": event_id }).await
     }
 
-    async fn get_guest(&self, event_id: &str, guest_id: &str) -> Result<()> {
+    async fn get_guest(&self, event_id: &str, guest_id: &str) -> Result<EventGuest> {
         self.find_one::<EventGuest>(GUESTS_COL, doc! { "_id": guest_id, "event_id": event_id })
             .await
-            .map(|_| ())
     }
 }
 

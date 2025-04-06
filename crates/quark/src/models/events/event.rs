@@ -53,7 +53,8 @@ pub struct Event {
     pub city: String,
 
     /// Country where event is held
-    pub country: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
 
     /// Whether the event is public or private
     #[serde(skip_serializing_if = "if_false", default)]

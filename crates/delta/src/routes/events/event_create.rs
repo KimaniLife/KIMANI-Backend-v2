@@ -126,7 +126,7 @@ pub async fn create_event(
         attachments: data.attachments.clone(),
         gallery: data.gallery.clone(),
         thumbnail: data.thumbnail,
-        country: data.country.clone(),
+        country: Some(data.country.clone()),
         created_at: date,
         is_saved: None,
         host_details: None,

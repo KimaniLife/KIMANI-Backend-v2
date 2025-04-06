@@ -31,5 +31,5 @@ pub trait AbstractEvents: Sync + Send {
     /// Get event guests
     async fn get_event_guests(&self, event_id: &str) -> Result<Vec<EventGuest>>;
     /// Get guest by ID
-    async fn get_guest(&self, event_id: &str, guest_id: &str) -> Result<()>;
+    async fn get_guest(&self, event_id: &str, guest_id: &str) -> Result<EventGuest>;
 }
