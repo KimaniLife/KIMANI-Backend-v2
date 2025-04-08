@@ -49,6 +49,10 @@ pub struct Event {
     /// End date and time
     pub end_date: String,
 
+    /// Timezone for the event
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
+
     /// City where event is held
     pub city: String,
 

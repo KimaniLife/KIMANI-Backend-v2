@@ -68,6 +68,8 @@ pub struct DataCreateEvent {
     pub thumbnail: Option<String>,
     /// Country where event is held
     pub country: String,
+    /// Timezone
+    pub timezone: String,
 }
 
 /// Create a new event
@@ -101,7 +103,7 @@ pub async fn create_event(
     }
 
     let date = Utc::now().to_rfc3339();
-    let event = Event {
+    let mut event = Event {
         id: Ulid::new().to_string(),
         created_by: Some(user.id),
         title: data.title,
@@ -133,7 +135,13 @@ pub async fn create_event(
         sponsor_details: None,
         guests: None,
         guest_stats: None,
+        timezone: Some(data.timezone.clone()),
     };
+
+    // Set default timezone if not provided
+    if event.timezone.is_none() {
+        event.timezone = Some("UTC".to_string());
+    }
 
     db.insert_event(&event).await?;
     Ok(Json(event))

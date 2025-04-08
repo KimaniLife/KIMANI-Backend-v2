@@ -39,6 +39,7 @@ impl From<DataEditEvent> for PartialEvent {
             guest_stats: None,
             thumbnail: data.thumbnail,
             country: data.country,
+            timezone: data.timezone,
         }
     }
 }
@@ -71,6 +72,8 @@ pub struct DataEditEvent {
     pub thumbnail: Option<String>,
     /// Country where event is held
     pub country: Option<String>,
+    /// Timezone
+    pub timezone: Option<String>,
 }
 
 /// Update event
