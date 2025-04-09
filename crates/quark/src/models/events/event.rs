@@ -147,6 +147,10 @@ pub struct Event {
     /// Thumbnail image ID
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thumbnail: Option<String>,
+
+    /// Counter for guests invited via bulk messages
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub invited_count: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
@@ -163,12 +167,18 @@ pub struct TicketConfig {
     /// Member ticket price (if paid)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub member_price: Option<String>,
+    /// Member ticket price currency (e.g. "USD", "EUR")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub member_price_currency: Option<String>,
     /// Maximum tickets for members
     #[serde(skip_serializing_if = "Option::is_none")]
     pub member_max_tickets: Option<i32>,
     /// Non-member ticket price (if paid)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub non_member_price: Option<String>,
+    /// Non-member ticket price currency (e.g. "USD", "EUR")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub non_member_price_currency: Option<String>,
     /// Maximum tickets for non-members
     #[serde(skip_serializing_if = "Option::is_none")]
     pub non_member_max_tickets: Option<i32>,

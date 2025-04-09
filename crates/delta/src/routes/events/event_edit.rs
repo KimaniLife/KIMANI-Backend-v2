@@ -40,6 +40,7 @@ impl From<DataEditEvent> for PartialEvent {
             thumbnail: data.thumbnail,
             country: data.country,
             timezone: data.timezone,
+            invited_count: None,
         }
     }
 }

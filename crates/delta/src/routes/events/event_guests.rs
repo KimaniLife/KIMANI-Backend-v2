@@ -3,6 +3,7 @@ use revolt_quark::authifier::Authifier;
 use revolt_quark::{
     models::channels::channel::{Channel, PartialChannel},
     models::channels::message::Message,
+    models::events::event::PartialEvent,
     models::events::guest::{EventGuest, GuestStatus},
     models::user::User,
     types::push::MessageAuthor,
@@ -364,6 +365,9 @@ pub async fn send_bulk_messages(
         return Err(Error::NotFound);
     }
 
+    // Get current invited_count or initialize to 0
+    let mut invited_count = event.invited_count.unwrap_or(0);
+
     // Send messages
     for message in data.messages {
         // Find or create DM channel
@@ -452,7 +456,20 @@ pub async fn send_bulk_messages(
                 }
             }
         }
+
+        // Increment the counter for each guest invited
+        invited_count += 1;
     }
+
+    // Update the event with the new invited_count
+    db.update_event(
+        &event_id,
+        &PartialEvent {
+            invited_count: Some(invited_count),
+            ..Default::default()
+        },
+    )
+    .await?;
 
     Ok(Json(()))
 }

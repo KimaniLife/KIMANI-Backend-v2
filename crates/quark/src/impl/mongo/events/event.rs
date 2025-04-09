@@ -76,7 +76,15 @@ impl AbstractEvents for MongoDb {
         ids: &'a [String],
     ) -> Result<Vec<Event>> {
         let mut events: Vec<Event> = if ids.is_empty() {
-            self.find("events", doc! {}).await?
+            // Use find with sort option to get events sorted by start_date in ascending order
+            self.find_with_options(
+                "events",
+                doc! {},
+                mongodb::options::FindOptions::builder()
+                    .sort(doc! { "start_date": 1 })
+                    .build(),
+            )
+            .await?
         } else {
             self.find("events", doc! { "_id": { "$in": ids } }).await?
         };

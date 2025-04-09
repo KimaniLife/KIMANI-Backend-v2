@@ -136,6 +136,7 @@ pub async fn create_event(
         guests: None,
         guest_stats: None,
         timezone: Some(data.timezone.clone()),
+        invited_count: None,
     };
 
     // Set default timezone if not provided
