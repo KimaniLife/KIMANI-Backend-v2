@@ -123,13 +123,6 @@ pub trait DatabaseTrait: Sync + Send {
         destination: &str,
         current_user_id: &str,
     ) -> Result<Vec<Trip>>;
-    /// Marks all trips from a user in a destination as deleted, except for a specific trip
-    async fn mark_user_trips_as_deleted_in_destination(
-        &self,
-        user_id: &str,
-        destination: &str,
-        except_trip_id: Option<ObjectId>,
-    ) -> Result<()>;
     /// Marks a specific trip as deleted
     async fn delete_trip(&self, trip_id: ObjectId, user_id: &str) -> Result<()>;
     /// Creates a new comment on a trip
@@ -155,16 +148,7 @@ impl DatabaseTrait for MongoDb {
 
         let collection = self.col::<Trip>("trips");
         match collection.insert_one(&new_trip, None).await {
-            Ok(_res) => {
-                self.mark_user_trips_as_deleted_in_destination(
-                    &trip.user_id,
-                    &trip.destination,
-                    Some(id),
-                )
-                .await?;
-
-                Ok(())
-            }
+            Ok(_res) => Ok(()),
             Err(_) => Err(create_database_error!("insert", "trips")),
         }
     }
@@ -235,43 +219,6 @@ impl DatabaseTrait for MongoDb {
         }
 
         Ok(trips)
-    }
-
-    async fn mark_user_trips_as_deleted_in_destination(
-        &self,
-        user_id: &str,
-        destination: &str,
-        except_trip_id: Option<ObjectId>,
-    ) -> Result<()> {
-        let collection = self.col::<Trip>("trips");
-
-        // Get current time in UTC
-        let now = BsonDateTime::now();
-
-        // Build filter to match only future trips:
-        let mut filter = doc! {
-            "user_id": user_id,
-            "destination": destination,
-            "start_date": { "$gt": now },  // Only mark future trips as deleted
-            "deletion_date": { "$exists": false }
-        };
-
-        // Add except_trip_id to filter if provided
-        if let Some(trip_id) = except_trip_id {
-            filter.insert("_id", doc! { "$ne": trip_id });
-        }
-
-        // Update document - set deletion_date to current time
-        let update = doc! {
-            "$set": {
-                "deletion_date": now
-            }
-        };
-
-        match collection.update_many(filter, update, None).await {
-            Ok(_) => Ok(()),
-            Err(err) => Err(create_database_error!("update", "trips")),
-        }
     }
 
     async fn delete_trip(&self, trip_id: ObjectId, user_id: &str) -> Result<()> {
@@ -426,24 +373,6 @@ impl DatabaseTrait for Database {
                 unimplemented!(
                     "Reference DB not implemented for fetch_trips_by_date_and_destination."
                 )
-            }
-        }
-    }
-
-    async fn mark_user_trips_as_deleted_in_destination(
-        &self,
-        user_id: &str,
-        destination: &str,
-        except_trip_id: Option<ObjectId>,
-    ) -> Result<()> {
-        match self {
-            Database::MongoDb(mongo) => {
-                mongo
-                    .mark_user_trips_as_deleted_in_destination(user_id, destination, except_trip_id)
-                    .await
-            }
-            Database::Reference(_mock) => {
-                unimplemented!("Reference DB not implemented for mark_user_trips_as_deleted.")
             }
         }
     }
