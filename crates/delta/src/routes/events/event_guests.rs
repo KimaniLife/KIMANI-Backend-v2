@@ -84,7 +84,7 @@ pub struct UserMessage {
     pub user_id: String,
     /// Message content
     #[validate(length(min = 1, max = 2000))]
-    pub content: String,
+    pub content: Option<String>,
 }
 
 #[derive(Validate, Deserialize, JsonSchema)]
@@ -159,16 +159,19 @@ pub async fn update_bulk_guest_status(
 ) -> Result<Json<()>> {
     let data = data.into_inner();
     let mut approved_guests = Vec::new();
+    let mut rejected_guests = Vec::new();
 
     // First update all guest statuses
     for update in &data.updates {
         db.update_guest_status(&event_id, &update.guest_id, update.status.clone())
             .await?;
 
-        // If the status is Approved, add to list for email notification
-        if update.status == GuestStatus::Approved {
-            if let Ok(guest) = db.get_guest(&event_id, &update.guest_id).await {
-                approved_guests.push(guest);
+        // If the status is Approved or Rejected, add to respective lists for notifications
+        if let Ok(guest) = db.get_guest(&event_id, &update.guest_id).await {
+            match update.status {
+                GuestStatus::Approved => approved_guests.push(guest),
+                GuestStatus::Rejected => rejected_guests.push(guest),
+                _ => {}
             }
         }
     }
@@ -179,8 +182,10 @@ pub async fn update_bulk_guest_status(
         {
             let event = db.fetch_event(None, &event_id).await?;
             let approval_message = format!(
-                "Great news! Your request to attend {} has been approved. We look forward to seeing you there!",
-                event.title
+                "<b>Great news!</b> <br />
+                Your request to attend <a href=\"{}/events/view/{}\" target=\"_blank\">{}</a> has been approved. <br />
+                We look forward to seeing you there!",
+                *APP_URL, event_id, event.title
             );
 
             for guest in &approved_guests {
@@ -205,11 +210,103 @@ pub async fn update_bulk_guest_status(
                     json!({
                         "email": guest.email.clone(),
                         "url": format!("{}/events/view/{}", *APP_URL, event_id),
-                        "content": format!("{} is inviting you to this event: {}/events/view/{}\n\n{}", 
-                            _user.username, *APP_URL, event_id, approval_message.clone()),
+                        "content": format!("{}",
+                            approval_message.clone()),
                     }),
                 );
             }
+        }
+    }
+
+    // Send rejection emails to guests who were rejected
+    if !rejected_guests.is_empty() {
+        if let EmailVerificationConfig::Enabled { smtp, .. } = &authifier.config.email_verification
+        {
+            let event = db.fetch_event(None, &event_id).await?;
+            let rejection_message = format!(
+                "<b>This is an automatic system message</b> <br /> 
+                We regret to inform you that your request to attend {} has been declined. <br />
+                We appreciate your interest and hope to see you at future events.",
+                event.title
+            );
+
+            for guest in &rejected_guests {
+                smtp.send_email(
+                    guest.email.clone(),
+                    &Template {
+                        title: format!("Update on {} Request", event.title),
+                        text: include_str!(concat!(
+                            env!("CARGO_MANIFEST_DIR"),
+                            "/assets/templates/event.txt"
+                        ))
+                        .into(),
+                        url: format!("{}/events/view/{}", *APP_URL, event_id),
+                        html: Some(
+                            include_str!(concat!(
+                                env!("CARGO_MANIFEST_DIR"),
+                                "/assets/templates/event.html"
+                            ))
+                            .into(),
+                        ),
+                    },
+                    json!({
+                        "email": guest.email.clone(),
+                        "url": format!("{}/events/view/{}", *APP_URL, event_id),
+                        "content": format!("<b>This is an automatic system message</b> <br />
+                        \n\n{}",
+                             rejection_message.clone()),
+                    }),
+                );
+            }
+        }
+    }
+
+    // Send notification to hosts and event creator
+    if !approved_guests.is_empty() || !rejected_guests.is_empty() {
+        let event = db.fetch_event(None, &event_id).await?;
+        let mut recipients = event.hosts.clone();
+        if let Some(creator) = event.created_by {
+            recipients.push(creator);
+        }
+
+        let status_message = format!(
+            "Guest status updates for {}:\n\nApproved: {}\nRejected: {}",
+            event.title,
+            approved_guests.len(),
+            rejected_guests.len()
+        );
+
+        for recipient_id in recipients {
+            // Find or create DM channel
+            let channel = if let Ok(channel) = db
+                .find_direct_message_channel(&_user.id, &recipient_id)
+                .await
+            {
+                channel
+            } else {
+                let new_channel = Channel::DirectMessage {
+                    id: Ulid::new().to_string(),
+                    active: true,
+                    recipients: vec![_user.id.clone(), recipient_id.clone()],
+                    last_message_id: None,
+                };
+
+                new_channel.create(db).await?;
+                new_channel
+            };
+
+            // Send the message
+            let mut msg = Message {
+                id: Ulid::new().to_string(),
+                channel: channel.id().to_string(),
+                author: _user.id.clone(),
+                content: Some(status_message.clone()),
+                ..Default::default()
+            };
+
+            // Create the message with proper notification handling
+            msg.create(db, &channel, Some(MessageAuthor::User(&_user)))
+                .await?;
         }
     }
 
@@ -310,8 +407,10 @@ pub async fn add_bulk_guests(
     if let EmailVerificationConfig::Enabled { smtp, .. } = &authifier.config.email_verification {
         let event = db.fetch_event(None, &event_id).await?;
         let welcome_message = format!(
-            "Welcome to {}! You have been added as a guest to this event. Your approval is pending, we will notify you when it is approved.",
-            event.title
+            "<b>Welcome to <a href=\"{}/events/view/{}\" target=\"_blank\">{}</a>!</b> <br />
+            You have been added as a guest to this event. <br />
+            Your approval is pending, we will notify you when it is approved.",
+            *APP_URL, event_id, event.title
         );
 
         for guest in &created_guests {
@@ -339,6 +438,72 @@ pub async fn add_bulk_guests(
                     "content": welcome_message.clone(),
                 }),
             );
+        }
+
+        // Send notification to hosts about new guests
+        let mut host_emails = Vec::new();
+        for host_id in &event.hosts {
+            if let Ok(host) = db.inner().fetch_user(host_id).await {
+                if let Ok(account) = authifier.database.find_account(&host.id).await {
+                    if let account_host_email = account.email {
+                        host_emails.push(account_host_email);
+                    }
+                }
+            }
+        }
+
+        if let Some(creator_id) = &event.created_by {
+            if let Ok(creator) = db.inner().fetch_user(creator_id).await {
+                if let Ok(account) = authifier.database.find_account(&creator.id).await {
+                    if let account_creator_email = account.email {
+                        host_emails.push(account_creator_email);
+                    }
+                }
+            }
+        }
+
+        println!("host_emails: {:?}", host_emails);
+
+        if !host_emails.is_empty() {
+            let host_notification = format!(
+                "<b>New Guest Registration</b> <br />
+                {} new guest(s) have registered for your event <a href=\"{}/events/view/{}\" target=\"_blank\">{}</a>. <br />
+                Please review their registration by clicking 
+                <a href=\"{}/events/pending-requests/{}\" target=\"_blank\">here</a>.",
+                created_guests.len(),
+                *APP_URL,
+                event_id,
+                event.title,
+                *APP_URL,
+                event_id
+            );
+
+            for email in host_emails {
+                smtp.send_email(
+                    email.clone(),
+                    &Template {
+                        title: format!("New Guest Registration - {}", event.title),
+                        text: include_str!(concat!(
+                            env!("CARGO_MANIFEST_DIR"),
+                            "/assets/templates/event.txt"
+                        ))
+                        .into(),
+                        url: format!("{}/events/view/{}", *APP_URL, event_id),
+                        html: Some(
+                            include_str!(concat!(
+                                env!("CARGO_MANIFEST_DIR"),
+                                "/assets/templates/event.html"
+                            ))
+                            .into(),
+                        ),
+                    },
+                    json!({
+                        "email": email.clone(),
+                        "url": format!("{}/events/view/{}", *APP_URL, event_id),
+                        "content": host_notification.clone(),
+                    }),
+                );
+            }
         }
     }
 
@@ -394,11 +559,12 @@ pub async fn send_bulk_messages(
             channel: channel.id().to_string(),
             author: user.id.clone(),
             content: Some(format!(
-                "{} is inviting you to this event: {}/events/view/{}\n\n{}",
+                "{} is inviting you to {} event:\n\n{}/events/view/{}{}",
                 user.username,
+                event.title,
                 *APP_URL,
                 event_id,
-                message.content.clone()
+                message.content.as_ref().map(|c| format!("\n\n{}", c)).unwrap_or_default()
             )),
             ..Default::default()
         };
@@ -449,8 +615,14 @@ pub async fn send_bulk_messages(
                         json!({
                             "email": account.email.clone(),
                             "url": format!("{}/events/view/{}", *APP_URL, event_id),
-                            "content": format!("{} is inviting you to this event: {}/events/view/{}\n\n{}", 
-                                user.username, *APP_URL, event_id, message.content.clone()),
+                            "content": format!(
+                                "{} is inviting you to {} event:\n\n{}/events/view/{}{}\n\n", 
+                                user.username, 
+                                event.title, 
+                                *APP_URL, 
+                                event_id,
+                                message.content.as_ref().map(|c| format!("\n\n{}", c)).unwrap_or_default()
+                            ),
                         }),
                     );
                 }
@@ -524,11 +696,8 @@ pub async fn notify_guests(
                 channel: channel.id().to_string(),
                 author: user.id.clone(),
                 content: Some(format!(
-                    "{} is inviting you to this event: {}/events/view/{}\n\n{}",
-                    user.username,
-                    *APP_URL,
-                    event_id,
-                    data.content.clone()
+                    "{} is inviting you to this event: {}/events/view/{}",
+                    user.username, *APP_URL, event_id
                 )),
                 ..Default::default()
             };
