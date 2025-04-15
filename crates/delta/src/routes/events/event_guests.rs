@@ -182,8 +182,8 @@ pub async fn update_bulk_guest_status(
         {
             let event = db.fetch_event(None, &event_id).await?;
             let approval_message = format!(
-                "<b>Great news!</b> <br />
-                Your request to attend <a href=\"{}/events/view/{}\" target=\"_blank\">{}</a> has been approved. <br />
+                "This is an automatic system message \n\n
+                Your request to attend {}/events/view/{}\n
                 We look forward to seeing you there!",
                 *APP_URL, event_id, event.title
             );
@@ -224,8 +224,8 @@ pub async fn update_bulk_guest_status(
         {
             let event = db.fetch_event(None, &event_id).await?;
             let rejection_message = format!(
-                "<b>This is an automatic system message</b> <br /> 
-                We regret to inform you that your request to attend {} has been declined. <br />
+                "This is an automatic system message \n\n
+                We regret to inform you that your request to attend {} has been declined. \n
                 We appreciate your interest and hope to see you at future events.",
                 event.title
             );
@@ -407,8 +407,8 @@ pub async fn add_bulk_guests(
     if let EmailVerificationConfig::Enabled { smtp, .. } = &authifier.config.email_verification {
         let event = db.fetch_event(None, &event_id).await?;
         let welcome_message = format!(
-            "<b>Welcome to <a href=\"{}/events/view/{}\" target=\"_blank\">{}</a>!</b> <br />
-            You have been added as a guest to this event. <br />
+            "Welcome to {}/events/view/{}\n
+            You have been added as a guest to this event. \n
             Your approval is pending, we will notify you when it is approved.",
             *APP_URL, event_id, event.title
         );
@@ -466,10 +466,11 @@ pub async fn add_bulk_guests(
 
         if !host_emails.is_empty() {
             let host_notification = format!(
-                "<b>New Guest Registration</b> <br />
-                {} new guest(s) have registered for your event <a href=\"{}/events/view/{}\" target=\"_blank\">{}</a>. <br />
-                Please review their registration by clicking 
-                <a href=\"{}/events/pending-requests/{}\" target=\"_blank\">here</a>.",
+                "New Guest Registration \n
+                {} new guest(s) have registered for your event \n\n
+                {}/events/view/{}\n\n
+                Please review their registration by clicking \n
+                {}/events/pending-requests/{}\n",
                 created_guests.len(),
                 *APP_URL,
                 event_id,
