@@ -3,7 +3,7 @@ name: Rust build, test, and generate specification
 on:
   push:
   pull_request:
-    branches: [master]
+    branches: [ master, develop ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -64,7 +64,7 @@ jobs:
         with:
           repository: revoltchat/api
           path: api
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download OpenAPI specification
         if: github.event_name != 'pull_request' && github.ref_name == 'master'
