@@ -2,6 +2,14 @@ name: Rust build, test, and generate specification
 
 on:
   push:
+    paths-ignore:
+      - ".github/**"
+      - "!.github/workflows/rust.yaml"
+      - ".vscode/**"
+      - "stack/**"
+      - ".gitignore"
+      - "LICENSE"
+      - "README"
   pull_request:
     branches: [ master, develop ]
 
@@ -28,7 +36,7 @@ jobs:
 
       - name: Run services in background
         run: |
-          docker-compose -f docker-compose.db.yml up -d
+          docker compose -f docker-compose.db.yml up -d
 
       - name: Run cargo test
         uses: actions-rs/cargo@v1
