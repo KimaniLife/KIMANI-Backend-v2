@@ -1,0 +1,52 @@
+services:
+  # REST API
+  delta:
+    image: ghcr.io/kimanilife/server:master
+    networks:
+      - backend
+      - apps
+    environment:
+      MONGODB: $MONGODB
+      REDIS_URI: $REDIS_URI
+      REVOLT_APP_URL: $HOSTNAME
+      REVOLT_PUBLIC_URL: $HOSTNAME/api
+      REVOLT_EXTERNAL_WS_URL: $HOSTNAME/ws
+      AUTUMN_PUBLIC_URL: $HOSTNAME/autumn
+      JANUARY_PUBLIC_URL: $HOSTNAME/january
+      VOSO_PUBLIC_URL: $HOSTNAME/vortex
+      VOSO_WS_HOST: $HOSTNAME_WS/vortex-ws
+      VOSO_MANAGE_TOKEN: $VOSO_MANAGE_TOKEN
+      REVOLT_UNSAFE_NO_CAPTCHA: 1
+      REVOLT_UNSAFE_NO_EMAIL: 1
+      REVOLT_SMTP_HOST: $REVOLT_SMTP_HOST
+      REVOLT_SMTP_USERNAME: $REVOLT_SMTP_USERNAME
+      REVOLT_SMTP_PASSWORD: $REVOLT_SMTP_PASSWORD
+      REVOLT_SMTP_FROM: $REVOLT_SMTP_FROM
+      REVOLT_SMTP_PORT: $REVOLT_SMTP_PORT
+      REVOLT_IS_STAGING: 1
+      REVOLT_INVITE_ONLY: 0
+      REVOLT_MAX_CHANNEL_COUNT: 2000
+      REVOLT_MAX_GROUP_SIZE: 150
+      REVOLT_VAPID_PRIVATE_KEY: $REVOLT_VAPID_PRIVATE_KEY
+      REVOLT_VAPID_PUBLIC_KEY: $REVOLT_VAPID_PUBLIC_KEY
+
+  # Websockets Events
+  bonfire:
+    image: ghcr.io/kimanilife/bonfire:master
+    networks:
+      - backend
+      - apps
+    environment:
+      RUST_BACKTRACE: full
+      MONGODB: $MONGODB
+      REDIS_URI: $REDIS_URI
+
+networks:
+  backend:
+    name: kimani-backend
+    driver: overlay
+    external: true
+  apps:
+    name: kimani-apps
+    driver: overlay
+    external: true
