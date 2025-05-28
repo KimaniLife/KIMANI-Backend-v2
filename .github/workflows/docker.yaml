@@ -9,7 +9,7 @@ on:
       - "*"
     paths-ignore:
       - ".github/**"
-      - "!.github/workflows/docker.yml"
+      - "!.github/workflows/docker.yaml"
       - ".vscode/**"
       - ".gitignore"
       - "stack/**"
@@ -23,32 +23,36 @@ on:
       - "Dockerfile"
   workflow_dispatch:
 
-permissions:
-  contents: read
-  packages: write
+env:
+  REGISTRY: ghcr.io
 
 jobs:
   base:
-    runs-on: ubuntu-latest
     name: Build base image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       # Configure build environment
       - name: Checkout
-        uses: actions/checkout@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: actions/checkout@v4
 
       # Authenticate with GHCR
-      - name: Login to Github Container Registry
+      - name: Log in to the Container registry
         if: ${{ github.event_name != 'pull_request' }}
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build base image
-        uses: docker/build-push-action@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker images
+        uses: docker/build-push-action@v5
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
@@ -59,23 +63,25 @@ jobs:
 
   publish:
     needs: [base]
+    name: Build ${{ matrix.project }} image
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         project: [delta, bonfire]
-    name: Build ${{ matrix.project }} image
+
     steps:
       # Configure build environment
       - name: Checkout
-        uses: actions/checkout@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: actions/checkout@v4
 
-      - name: Login to Github Container Registry
-        uses: docker/login-action@v2
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -100,14 +106,18 @@ jobs:
       # Configure metadata
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: |
             ghcr.io/${{ steps.export.outputs.tag }}
+          labels: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       # Build crate image
       - name: Publish
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
           push: true
@@ -117,3 +127,5 @@ jobs:
           build-args: |
             BASE_IMAGE=ghcr.io/kimanilife/base:latest
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
