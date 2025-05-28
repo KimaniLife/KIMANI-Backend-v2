@@ -185,7 +185,7 @@ pub async fn update_bulk_guest_status(
                 "This is an automatic system message \n\n
                 Your request to attend {}/events/view/{}\n
                 We look forward to seeing you there!",
-                *APP_URL, event_id, event.title
+                *APP_URL, event_id
             );
 
             for guest in &approved_guests {
@@ -410,7 +410,7 @@ pub async fn add_bulk_guests(
             "Welcome to {}/events/view/{}\n
             You have been added as a guest to this event. \n
             Your approval is pending, we will notify you when it is approved.",
-            *APP_URL, event_id, event.title
+            *APP_URL, event_id
         );
 
         for guest in &created_guests {
@@ -474,7 +474,6 @@ pub async fn add_bulk_guests(
                 created_guests.len(),
                 *APP_URL,
                 event_id,
-                event.title,
                 *APP_URL,
                 event_id
             );

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "master"
+      - "develop"
     tags:
       - "*"
     paths-ignore:
@@ -11,11 +12,13 @@ on:
       - "!.github/workflows/docker.yml"
       - ".vscode/**"
       - ".gitignore"
+      - "stack/**"
       - "LICENSE"
       - "README"
   pull_request:
     branches:
       - "master"
+      - "develop"
     paths:
       - "Dockerfile"
   workflow_dispatch:
