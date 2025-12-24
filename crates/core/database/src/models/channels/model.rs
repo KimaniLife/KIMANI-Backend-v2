@@ -30,6 +30,30 @@ auto_derived!(
             #[serde(skip_serializing_if = "Option::is_none")]
             last_message_id: Option<String>,
         },
+        MarketplaceDM {
+            #[serde(rename = "_id")]
+            id: String,
+            buyer: String,
+            seller: String,
+            listing_id: String,
+            last_message_id: Option<String>,
+        },
+        ExperienceDM {
+            #[serde(rename = "_id")]
+            id: String,
+            user: String,
+            host: String,
+            experience_id: String,
+            last_message_id: Option<String>,
+        },
+        AdminDM {
+            #[serde(rename = "_id")]
+            id: String,
+            server: String,
+            admin: String,
+            user: String,
+            last_message_id: Option<String>,
+        },
         /// Group channel between 1 or more participants
         Group {
             /// Unique Id
@@ -271,10 +295,12 @@ impl Channel {
             | Channel::Group { id, .. }
             | Channel::SavedMessages { id, .. }
             | Channel::TextChannel { id, .. }
-            | Channel::VoiceChannel { id, .. } => id.clone(),
+            | Channel::VoiceChannel { id, .. }
+            | Channel::MarketplaceDM { id, .. }
+            | Channel::ExperienceDM { id, .. }
+            | Channel::AdminDM { id, .. } => id.clone(),
         }
     }
-
     /// Set role permission on a channel
     pub async fn set_role_permission(
         &mut self,
@@ -472,6 +498,11 @@ impl Channel {
                 if let Some(v) = partial.default_permissions {
                     default_permissions.replace(v);
                 }
+            }
+            Self::MarketplaceDM { .. }
+            | Self::ExperienceDM { .. }
+            | Self::AdminDM { .. } => {
+                // No-op: these channels are not user-editable
             }
         }
     }

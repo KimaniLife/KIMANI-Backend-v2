@@ -42,6 +42,8 @@ pub trait AbstractChannel: Sync + Send {
     /// Add user to a group
     async fn add_user_to_group(&self, channel: &str, user: &str) -> Result<()>;
 
+    async fn find_marketplace_dm(&self, listing_id: &str, buyer: &str, seller: &str) -> Result<Channel>;
+
     /// Remove a user from a group
     async fn remove_user_from_group(&self, channel: &str, user: &str) -> Result<()>;
 

@@ -74,6 +74,15 @@ impl AbstractChannel for DummyDb {
         Ok(())
     }
 
+    async fn find_marketplace_dm(
+        &self,
+        _listing_id: &str,
+        _buyer: &str,
+        _seller: &str,
+    ) -> Result<Channel> {
+        Err(Error::NotFound)
+    }
+
     async fn set_channel_role_permission(
         &self,
         channel: &str,
