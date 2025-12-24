@@ -10,6 +10,7 @@ use ulid::Ulid;
 /// Buyer = authenticated user  
 /// Seller = target user in URL  
 /// Listing = opaque external identifier
+/// Marketplace DMs cannot be opened with oneself.
 #[openapi(tag = "Marketplace")]
 #[post("/marketplace/<listing_id>/dm/<seller>")]
 pub async fn req(
