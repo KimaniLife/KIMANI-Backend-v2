@@ -11,7 +11,7 @@ use crate::{
     },
     tasks::{ack::AckEvent, process_embeds},
     types::push::MessageAuthor,
-    variables::delta::{MAX_ATTACHMENT_COUNT, MAX_REPLY_COUNT, MAX_EMBED_COUNT},
+    variables::delta::{MAX_ATTACHMENT_COUNT, MAX_EMBED_COUNT, MAX_REPLY_COUNT},
     web::idempotency::IdempotencyKey,
     Database, Error, OverrideField, Ref, Result,
 };
@@ -24,7 +24,10 @@ impl Channel {
             | Channel::Group { id, .. }
             | Channel::SavedMessages { id, .. }
             | Channel::TextChannel { id, .. }
-            | Channel::VoiceChannel { id, .. } => id,
+            | Channel::VoiceChannel { id, .. }
+            | Channel::MarketplaceDM { id, .. }
+            | Channel::ExperienceDM { id, .. }
+            | Channel::AdminDM { id, .. } => id,
         }
     }
 
@@ -35,7 +38,10 @@ impl Channel {
             | Channel::Group { id, .. }
             | Channel::SavedMessages { id, .. }
             | Channel::TextChannel { id, .. }
-            | Channel::VoiceChannel { id, .. } => id,
+            | Channel::VoiceChannel { id, .. }
+            | Channel::MarketplaceDM { id, .. }
+            | Channel::ExperienceDM { id, .. }
+            | Channel::AdminDM { id, .. } => id,
         }
     }
 
@@ -58,6 +64,11 @@ impl Channel {
             }
             Self::TextChannel { server, .. } | Self::VoiceChannel { server, .. } => {
                 event.p(server.clone()).await;
+            }
+            Self::MarketplaceDM { id, .. }
+            | Self::ExperienceDM { id, .. }
+            | Self::AdminDM { id, .. } => {
+                event.p(id.clone()).await;
             }
         }
 
@@ -497,16 +508,24 @@ impl Channel {
 
         // Add attachments to message.
         let mut attachments = vec![];
-        if data.attachments.as_ref().is_some_and(|v| v.len() > *MAX_ATTACHMENT_COUNT) {
+        if data
+            .attachments
+            .as_ref()
+            .is_some_and(|v| v.len() > *MAX_ATTACHMENT_COUNT)
+        {
             return Err(Error::TooManyAttachments {
                 max: *MAX_ATTACHMENT_COUNT,
             });
         }
 
-        if data.embeds.as_ref().is_some_and(|v| v.len() > *MAX_EMBED_COUNT) {
+        if data
+            .embeds
+            .as_ref()
+            .is_some_and(|v| v.len() > *MAX_EMBED_COUNT)
+        {
             return Err(Error::TooManyEmbeds {
-                max: *MAX_EMBED_COUNT
-            })
+                max: *MAX_EMBED_COUNT,
+            });
         }
 
         for attachment_id in data.attachments.as_deref().unwrap_or_default() {

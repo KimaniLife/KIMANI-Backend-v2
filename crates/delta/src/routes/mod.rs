@@ -19,6 +19,7 @@ mod sync;
 mod trips;
 mod users;
 mod webhooks;
+mod marketplace;
 
 pub fn mount(mut rocket: Rocket<Build>) -> Rocket<Build> {
     let settings = OpenApiSettings::default();
@@ -44,6 +45,7 @@ pub fn mount(mut rocket: Rocket<Build>) -> Rocket<Build> {
             "/sync" => sync::routes(),
             "/webhooks" => webhooks::routes(),
             "/trips" => trips::routes(),
+            "/marketplace" => marketplace::routes(),
             "/events" => events::routes(),
         };
     } else {
@@ -68,6 +70,7 @@ pub fn mount(mut rocket: Rocket<Build>) -> Rocket<Build> {
             "/sync" => sync::routes(),
             "/webhooks" => webhooks::routes(),
             "/trips" => trips::routes(),
+            "/marketplace" => marketplace::routes(),
             "/events" => events::routes(),
         };
     }

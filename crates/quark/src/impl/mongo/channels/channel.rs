@@ -239,6 +239,24 @@ impl AbstractChannel for MongoDb {
         .await
     }
 
+    async fn find_marketplace_dm(
+        &self,
+        listing_id: &str,
+        buyer: &str,
+        seller: &str,
+    ) -> Result<Channel> {
+        self.find_one(
+            COL,
+            doc! {
+                "channel_type": "MarketplaceDM",
+                "listing_id": listing_id,
+                "buyer": buyer,
+                "seller": seller,
+            },
+        )
+        .await
+    }
+
     async fn add_user_to_group(&self, channel: &str, user: &str) -> Result<()> {
         self.col::<Document>(COL)
             .update_one(

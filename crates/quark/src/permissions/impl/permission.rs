@@ -226,6 +226,29 @@ async fn calculate_channel_permission(
                 (Permission::GrantAllSafe as u64).into()
             }
         }
+        Channel::MarketplaceDM { buyer, seller, .. } => {
+            if buyer == &data.perspective.id || seller == &data.perspective.id {
+                (*DEFAULT_PERMISSION_DIRECT_MESSAGE).into()
+            } else {
+                0_u64.into()
+            }
+        }
+
+        Channel::ExperienceDM { user, host, .. } => {
+            if user == &data.perspective.id || host == &data.perspective.id {
+                (*DEFAULT_PERMISSION_DIRECT_MESSAGE).into()
+            } else {
+                0_u64.into()
+            }
+        }
+
+        Channel::AdminDM { admin, user, .. } => {
+            if admin == &data.perspective.id || user == &data.perspective.id {
+                (*DEFAULT_PERMISSION_DIRECT_MESSAGE).into()
+            } else {
+                0_u64.into()
+            }
+        }
     };
 
     Ok(value)
