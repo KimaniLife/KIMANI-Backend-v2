@@ -143,6 +143,33 @@ auto_derived!(
             )]
             nsfw: bool,
         },
+        MarketplaceDM {
+            #[cfg_attr(feature = "serde", serde(rename = "_id"))]
+            id: String,
+            buyer: String,
+            seller: String,
+            listing_id: String,
+            #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+            last_message_id: Option<String>,
+        },
+        ExperienceDM {
+            #[cfg_attr(feature = "serde", serde(rename = "_id"))]
+            id: String,
+            user: String,
+            host: String,
+            experience_id: String,
+            #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+            last_message_id: Option<String>,
+        },
+        AdminDM {
+            #[cfg_attr(feature = "serde", serde(rename = "_id"))]
+            id: String,
+            server: String,
+            admin: String,
+            user: String,
+            #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+            last_message_id: Option<String>,
+        },
     }
 
     /// Partial representation of a channel

@@ -141,6 +141,33 @@ pub enum Channel {
         #[serde(skip_serializing_if = "Option::is_none")]
         password: Option<String>,
     },
+    MarketplaceDM {
+        #[serde(rename = "_id")]
+        id: String,
+        buyer: String,
+        seller: String,
+        listing_id: String,
+        last_message_id: Option<String>,
+        recipients: Vec<String>,
+    },
+    ExperienceDM {
+        #[serde(rename = "_id")]
+        id: String,
+        user: String,
+        host: String,
+        experience_id: String,
+        last_message_id: Option<String>,
+        recipients: Vec<String>,
+    },
+    AdminDM {
+        #[serde(rename = "_id")]
+        id: String,
+        server: String,
+        admin: String,
+        user: String,
+        last_message_id: Option<String>,
+        recipients: Vec<String>,
+    },
 }
 
 /// Partial values of [Channel]

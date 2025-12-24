@@ -17,6 +17,7 @@ mod servers;
 mod sync;
 mod users;
 mod webhooks;
+mod marketplace;
 mod trips;
 
 pub fn mount(mut rocket: Rocket<Build>) -> Rocket<Build> {
@@ -42,7 +43,8 @@ pub fn mount(mut rocket: Rocket<Build>) -> Rocket<Build> {
             "/push" => push::routes(),
             "/sync" => sync::routes(),
             "/webhooks" => webhooks::routes(),
-            "/trips" => trips::routes()
+            "/trips" => trips::routes(),
+            "/marketplace" => marketplace::routes()
         };
     } else {
         mount_endpoints_and_merged_docs! {
@@ -65,7 +67,8 @@ pub fn mount(mut rocket: Rocket<Build>) -> Rocket<Build> {
             "/push" => push::routes(),
             "/sync" => sync::routes(),
             "/webhooks" => webhooks::routes(),
-            "/trips" => trips::routes()
+            "/trips" => trips::routes(),
+            "/marketplace" => marketplace::routes()
         };
     }
 

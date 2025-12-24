@@ -56,5 +56,6 @@ pub async fn req(
 
             channel.delete(db).await.map(|_| EmptyResponse)
         }
+        Channel::MarketplaceDM { .. } | Channel::ExperienceDM { .. } | Channel::AdminDM { .. } => Err(Error::NoEffect),
     }
 }
