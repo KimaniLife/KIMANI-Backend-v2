@@ -33,6 +33,13 @@ pub trait AbstractChannel: Sync + Send {
     /// Returns group DMs, any DMs marked as "active" and saved messages.
     async fn find_direct_messages(&self, user_id: &str) -> Result<Vec<Channel>>;
 
+    async fn find_marketplace_dm(
+        &self,
+        listing_id: &str,
+        buyer: &str,
+        seller: &str,
+    ) -> Result<Channel>;
+
     /// Find a direct message channel between two users
     async fn find_direct_message_channel(&self, user_a: &str, user_b: &str) -> Result<Channel>;
 
@@ -41,8 +48,6 @@ pub trait AbstractChannel: Sync + Send {
 
     /// Add user to a group
     async fn add_user_to_group(&self, channel: &str, user: &str) -> Result<()>;
-
-    async fn find_marketplace_dm(&self, listing_id: &str, buyer: &str, seller: &str) -> Result<Channel>;
 
     /// Remove a user from a group
     async fn remove_user_from_group(&self, channel: &str, user: &str) -> Result<()>;
