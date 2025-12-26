@@ -12,6 +12,7 @@ use ulid::Ulid;
 /// Listing = opaque external identifier
 /// Marketplace DMs cannot be opened with oneself.
 /// If a DM already exists for the given listing between the buyer and seller, it is returned.
+/// Otherwise, a new Marketplace DM channel is created.
 #[openapi(tag = "Marketplace")]
 #[post("/marketplace/<listing_id>/dm/<seller>")]
 pub async fn req(
