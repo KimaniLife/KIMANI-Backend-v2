@@ -155,6 +155,7 @@ pub enum Channel {
         listing_id: String,
         last_message_id: Option<String>,
         recipients: Vec<String>,
+        active: bool,
     },
     ExperienceDM {
         #[serde(rename = "_id")]
