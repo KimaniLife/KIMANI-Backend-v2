@@ -154,6 +154,8 @@ auto_derived!(
             listing_id: String,
             #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
             last_message_id: Option<String>,
+            recipients: Vec<String>,
+            active: bool,
         },
         ExperienceDM {
             #[cfg_attr(feature = "serde", serde(rename = "_id"))]

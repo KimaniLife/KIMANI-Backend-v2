@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::{
     models::Channel, permissions::PermissionCalculator, Override, Permission, PermissionValue,
-    Permissions, Perms, Result, ALLOW_IN_TIMEOUT, DEFAULT_PERMISSION_DIRECT_MESSAGE,
+    Permissions, Perms, Result, ALLOW_IN_TIMEOUT, DEFAULT_PERMISSION_DIRECT_MESSAGE, DEFAULT_PERMISSION_MARKETPLACE_DM,
     DEFAULT_PERMISSION_SAVED_MESSAGES, DEFAULT_PERMISSION_VIEW_ONLY,
 };
 
@@ -228,7 +228,7 @@ async fn calculate_channel_permission(
         }
         Channel::MarketplaceDM { buyer, seller, .. } => {
             if buyer == &data.perspective.id || seller == &data.perspective.id {
-                (*DEFAULT_PERMISSION_DIRECT_MESSAGE).into()
+                (*DEFAULT_PERMISSION_MARKETPLACE_DM).into()
             } else {
                 0_u64.into()
             }

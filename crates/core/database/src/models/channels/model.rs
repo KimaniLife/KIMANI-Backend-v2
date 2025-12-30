@@ -35,7 +35,10 @@ auto_derived!(
             id: String,
             buyer: String,
             seller: String,
+            recipients: Vec<String>,
+            active: bool,
             listing_id: String,
+            #[serde(skip_serializing_if = "Option::is_none")]
             last_message_id: Option<String>,
         },
         ExperienceDM {

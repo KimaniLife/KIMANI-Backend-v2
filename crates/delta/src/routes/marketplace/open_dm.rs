@@ -44,6 +44,7 @@ pub async fn req(
         listing_id,
         last_message_id: None,
         recipients: vec![user.id.clone(), seller.id.clone()],
+        active: true,
     };
 
     channel.create(db).await?;

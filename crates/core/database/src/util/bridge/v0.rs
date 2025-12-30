@@ -169,12 +169,16 @@ impl From<crate::Channel> for Channel {
                 seller,
                 listing_id,
                 last_message_id,
+                active ,
+                recipients, 
             } => Channel::MarketplaceDM {
                 id,
                 buyer,
                 seller,
                 listing_id,
                 last_message_id,
+                active,
+                recipients,
             },
 
             crate::Channel::ExperienceDM {
