@@ -1,5 +1,5 @@
 # Build Stage
-FROM --platform="${BUILDPLATFORM}" rust:1.70.0-slim
+FROM --platform="${BUILDPLATFORM}" rust:1.78-bullseye
 USER 0:0
 WORKDIR /home/rust/src
 

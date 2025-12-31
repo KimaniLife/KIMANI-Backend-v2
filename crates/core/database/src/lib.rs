@@ -17,14 +17,16 @@ extern crate revolt_optional_struct;
 extern crate revolt_result;
 
 #[cfg(feature = "mongodb")]
-pub use ::mongodb;  
+pub use ::mongodb;
 //pub use drivers::mongodb;
 
-use futures::stream::StreamExt; 
+use futures::stream::StreamExt;
 
 #[cfg(feature = "mongodb")]
 #[macro_use]
 extern crate bson;
+
+use crate::models::trips::model::{Trip, TripComment};
 
 macro_rules! database_derived {
     ( $( $item:item )+ ) => {
@@ -104,13 +106,12 @@ pub fn if_false(t: &bool) -> bool {
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use revolt_result::{Result, create_database_error};
+use revolt_result::{create_database_error, Result};
 
-use crate::models::trips::model::Trip;
 pub use crate::drivers::Database;
 pub use drivers::mongodb::MongoDb;
 
-use bson::{doc, DateTime as BsonDateTime};
+use bson::{doc, oid::ObjectId, DateTime as BsonDateTime};
 
 /// A trait exposing the DB methods your code calls
 #[async_trait]
@@ -120,7 +121,18 @@ pub trait DatabaseTrait: Sync + Send {
         &self,
         date: DateTime<Utc>,
         destination: &str,
+        current_user_id: &str,
     ) -> Result<Vec<Trip>>;
+    /// Marks a specific trip as deleted
+    async fn delete_trip(&self, trip_id: ObjectId, user_id: &str) -> Result<()>;
+    /// Creates a new comment on a trip
+    async fn create_trip_comment(&self, comment: &TripComment) -> Result<()>;
+    /// Fetches all comments for a trip in a destination
+    async fn fetch_trip_comments_by_destination(
+        &self,
+        trip_id: ObjectId,
+        destination: &str,
+    ) -> Result<Vec<TripComment>>;
 }
 
 // ----------------------------------------------------------------------------
@@ -130,19 +142,14 @@ pub trait DatabaseTrait: Sync + Send {
 #[async_trait]
 impl DatabaseTrait for MongoDb {
     async fn insert_trip(&self, trip: &Trip) -> Result<()> {
-        // Log the entire Trip struct
-        eprintln!("[MongoDb::insert_trip] Inserting trip = {:?}", trip);
+        let mut new_trip = trip.clone();
+        let id = ObjectId::new();
+        new_trip.id = Some(id);
 
         let collection = self.col::<Trip>("trips");
-        match collection.insert_one(trip, None).await {
-            Ok(_res) => {
-                eprintln!("[MongoDb::insert_trip] Insert SUCCESS");
-                Ok(())
-            }
-            Err(err) => {
-                eprintln!("[MongoDb::insert_trip] Insert ERROR: {}", err);
-                Err(create_database_error!("insert", "trips"))
-            }
+        match collection.insert_one(&new_trip, None).await {
+            Ok(_res) => Ok(()),
+            Err(_) => Err(create_database_error!("insert", "trips")),
         }
     }
 
@@ -150,51 +157,188 @@ impl DatabaseTrait for MongoDb {
         &self,
         date: DateTime<Utc>,
         destination: &str,
+        current_user_id: &str,
     ) -> Result<Vec<Trip>> {
-        eprintln!("[MongoDb::fetch_trips_by_date_and_destination] date = {}, destination = {}",
-                  date, destination);
-
-        // Convert Chrono -> BSON
-        let mongo_date = BsonDateTime::from_chrono(date);
-        eprintln!("[MongoDb] Converted date to BsonDateTime = {:?}", mongo_date);
-
-        let filter = doc! {
-            "destination": destination,
-            "start_date": { "$lte": mongo_date },
-            "end_date":   { "$gte": mongo_date }
-        };
-        eprintln!("[MongoDb] Using filter = {:?}", filter);
+        let today = Utc::now().date().and_hms(0, 0, 0);
+        let today_bson = BsonDateTime::from_chrono(today);
 
         let collection = self.col::<Trip>("trips");
-        let mut cursor = match collection.find(filter, None).await {
-            Ok(cur) => {
-                eprintln!("[MongoDb] find() SUCCESS, got a cursor. Iterating docs...");
-                cur
-            }
-            Err(err) => {
-                eprintln!("[MongoDb] find() ERROR: {}", err);
-                return Err(create_database_error!("find", "trips"));
-            }
-        };
+
+        let pipeline = vec![
+            doc! {
+                "$match": {
+                    "destination": destination,
+                    "start_date": { "$gte": today_bson },
+                    "$or": [
+                        { "deletion_date": { "$exists": false } },
+                        { "deletion_date": null }
+                    ]
+                }
+            },
+            doc! {
+                "$addFields": {
+                    "sortOrder": {
+                        "$switch": {
+                            "branches": [
+                                {
+                                    "case": { "$eq": ["$user_id", current_user_id] },
+                                    "then": 0
+                                }
+                            ],
+                            "default": 1
+                        }
+                    }
+                }
+            },
+            doc! {
+                "$sort": {
+                    "sortOrder": 1,
+                    "end_date": 1
+                }
+            },
+            doc! {
+                "$project": {
+                    "sortOrder": 0
+                }
+            },
+        ];
+
+        let mut cursor = collection
+            .aggregate(pipeline, None)
+            .await
+            .map_err(|_| create_database_error!("find", "trips"))?;
 
         let mut trips = Vec::new();
 
         while let Some(doc) = cursor.next().await {
-            match doc {
-                Ok(trip) => {
-                    eprintln!("[MongoDb] Found doc => {:?}", trip);
+            if let Ok(doc) = doc {
+                if let Ok(trip) = bson::from_document(doc) {
                     trips.push(trip);
-                }
-                Err(err) => {
-                    eprintln!("[MongoDb] Cursor read error: {}", err);
                 }
             }
         }
 
-        eprintln!("[MongoDb] Found {} trip(s) matching date={} destination={}",
-                  trips.len(), date, destination);
-
         Ok(trips)
+    }
+
+    async fn delete_trip(&self, trip_id: ObjectId, user_id: &str) -> Result<()> {
+        let collection = self.col::<Trip>("trips");
+
+        // Get current time in UTC
+        let now = BsonDateTime::now();
+
+        let filter = doc! {
+            "_id": trip_id,
+            "user_id": user_id,  // Ensure user owns the trip
+            "$or": [  // $or needs to be at the top level of the query
+                { "deletion_date": { "$exists": false } },
+                { "deletion_date": null }
+            ]  // Only delete if not already deleted
+        };
+
+        let update = doc! {
+            "$set": {
+                "deletion_date": now
+            }
+        };
+
+        match collection.update_one(filter, update, None).await {
+            Ok(result) => {
+                if result.modified_count == 0 {
+                    // Check if the trip exists at all
+                    let trip_exists = collection
+                        .find_one(doc! { "_id": trip_id }, None)
+                        .await
+                        .map_err(|_| create_database_error!("find", "trips"))?;
+
+                    match trip_exists {
+                        Some(_) => Err(create_database_error!("unauthorized", "trip")), // Trip exists but user doesn't own it
+                        None => Err(create_database_error!("not_found", "trip")), // Trip doesn't exist
+                    }
+                } else {
+                    Ok(())
+                }
+            }
+            Err(err) => Err(create_database_error!("update", "trips")),
+        }
+    }
+
+    async fn create_trip_comment(&self, comment: &TripComment) -> Result<()> {
+        let mut new_comment = comment.clone();
+        new_comment.id = Some(ObjectId::new());
+        new_comment.created_at = Utc::now();
+
+        let collection = self.col::<TripComment>("trip_comments");
+        match collection.insert_one(&new_comment, None).await {
+            Ok(_) => Ok(()),
+            Err(err) => Err(create_database_error!("insert", "trip_comments")),
+        }
+    }
+
+    async fn fetch_trip_comments_by_destination(
+        &self,
+        trip_id: ObjectId,
+        destination: &str,
+    ) -> Result<Vec<TripComment>> {
+        let trips_collection = self.col::<Trip>("trips");
+        let comments_collection = self.col::<TripComment>("trip_comments");
+
+        // First verify the trip exists and matches the destination
+        let trip = trips_collection
+            .find_one(
+                doc! {
+                    "_id": trip_id,
+                    "destination": destination,
+                    "$or": [
+                        { "deletion_date": { "$exists": false } },
+                        { "deletion_date": null }
+                    ]
+                },
+                None,
+            )
+            .await
+            .map_err(|_| create_database_error!("find", "trips"))?;
+
+        // If trip doesn't exist or doesn't match destination, return error
+        if trip.is_none() {
+            return Err(create_database_error!("not_found", "trip"));
+        }
+
+        // Get comments for this trip
+        let pipeline = vec![
+            // Match comments for the specific trip
+            doc! {
+                "$match": {
+                    "trip_id": trip_id
+                }
+            },
+            // Sort by created_at descending (newest first)
+            doc! {
+                "$sort": {
+                    "created_at": -1
+                }
+            },
+        ];
+
+        let mut cursor = comments_collection
+            .aggregate(pipeline, None)
+            .await
+            .map_err(|_| create_database_error!("aggregate", "trip_comments"))?;
+
+        let mut comments = Vec::new();
+
+        while let Some(doc) = cursor.next().await {
+            match doc {
+                Ok(doc) => {
+                    if let Ok(comment) = bson::from_document(doc) {
+                        comments.push(comment);
+                    }
+                }
+                Err(_) => return Err(create_database_error!("find", "trip_comments")),
+            }
+        }
+
+        Ok(comments)
     }
 }
 
@@ -206,13 +350,8 @@ impl DatabaseTrait for MongoDb {
 impl DatabaseTrait for Database {
     async fn insert_trip(&self, trip: &Trip) -> Result<()> {
         match self {
-            Database::MongoDb(mongo) => {
-                eprintln!("[Database::insert_trip -> MongoDb] delegating...");
-                mongo.insert_trip(trip).await
-            }
+            Database::MongoDb(mongo) => mongo.insert_trip(trip).await,
             Database::Reference(_mock) => {
-                // If you have a mock/Reference variant, either implement or unimplemented!()
-                eprintln!("[Database::insert_trip -> Reference] unimplemented");
                 unimplemented!("Reference DB not implemented for insert_trip.")
             }
         }
@@ -222,15 +361,53 @@ impl DatabaseTrait for Database {
         &self,
         date: DateTime<Utc>,
         destination: &str,
+        current_user_id: &str,
     ) -> Result<Vec<Trip>> {
         match self {
             Database::MongoDb(mongo) => {
-                eprintln!("[Database::fetch_trips -> MongoDb] delegating...");
-                mongo.fetch_trips_by_date_and_destination(date, destination).await
+                mongo
+                    .fetch_trips_by_date_and_destination(date, destination, current_user_id)
+                    .await
             }
             Database::Reference(_mock) => {
-                eprintln!("[Database::fetch_trips -> Reference] unimplemented");
-                unimplemented!("Reference DB not implemented for fetch_trips_by_date_and_destination.")
+                unimplemented!(
+                    "Reference DB not implemented for fetch_trips_by_date_and_destination."
+                )
+            }
+        }
+    }
+
+    async fn delete_trip(&self, trip_id: ObjectId, user_id: &str) -> Result<()> {
+        match self {
+            Database::MongoDb(mongo) => mongo.delete_trip(trip_id, user_id).await,
+            Database::Reference(_mock) => {
+                unimplemented!("Reference DB not implemented for delete_trip.")
+            }
+        }
+    }
+
+    async fn create_trip_comment(&self, comment: &TripComment) -> Result<()> {
+        match self {
+            Database::MongoDb(mongo) => mongo.create_trip_comment(comment).await,
+            Database::Reference(_mock) => {
+                unimplemented!("Reference DB not implemented for create_trip_comment.")
+            }
+        }
+    }
+
+    async fn fetch_trip_comments_by_destination(
+        &self,
+        trip_id: ObjectId,
+        destination: &str,
+    ) -> Result<Vec<TripComment>> {
+        match self {
+            Database::MongoDb(mongo) => {
+                mongo
+                    .fetch_trip_comments_by_destination(trip_id, destination)
+                    .await
+            }
+            Database::Reference(_mock) => {
+                unimplemented!("Reference DB not implemented for fetch_trip_comments.")
             }
         }
     }

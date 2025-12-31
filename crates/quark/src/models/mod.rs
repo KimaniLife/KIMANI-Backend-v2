@@ -8,7 +8,7 @@ mod media {
     pub mod emoji;
 }
 
-mod channels {
+pub mod channels {
     pub mod channel;
     pub mod channel_invite;
     pub mod channel_unread;
@@ -26,14 +26,20 @@ mod users {
     pub mod user_settings;
     pub mod user_white_list;
 }
-
 mod safety {
     pub mod report;
     pub mod snapshot;
 }
 
+pub mod events {
+    pub mod event;
+    pub mod guest;
+    pub mod saved_event;
+}
+
 pub use admin::*;
 pub use channels::*;
+pub use events::*;
 pub use media::*;
 pub use safety::*;
 pub use servers::*;

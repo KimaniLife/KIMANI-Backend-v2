@@ -62,6 +62,7 @@ auto_derived!(
                 serde(skip_serializing_if = "crate::if_false", default)
             )]
             nsfw: bool,
+            hide_title: bool,
         },
         /// Text channel belonging to a server
         TextChannel {
@@ -105,6 +106,7 @@ auto_derived!(
                 serde(skip_serializing_if = "crate::if_false", default)
             )]
             nsfw: bool,
+            hide_title: bool,
         },
         /// Voice channel belonging to a server
         VoiceChannel {
@@ -142,6 +144,36 @@ auto_derived!(
                 serde(skip_serializing_if = "crate::if_false", default)
             )]
             nsfw: bool,
+            hide_title: bool,
+        },
+        MarketplaceDM {
+            #[cfg_attr(feature = "serde", serde(rename = "_id"))]
+            id: String,
+            buyer: String,
+            seller: String,
+            listing_id: String,
+            #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+            last_message_id: Option<String>,
+            recipients: Vec<String>,
+            active: bool,
+        },
+        ExperienceDM {
+            #[cfg_attr(feature = "serde", serde(rename = "_id"))]
+            id: String,
+            user: String,
+            host: String,
+            experience_id: String,
+            #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+            last_message_id: Option<String>,
+        },
+        AdminDM {
+            #[cfg_attr(feature = "serde", serde(rename = "_id"))]
+            id: String,
+            server: String,
+            admin: String,
+            user: String,
+            #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+            last_message_id: Option<String>,
         },
     }
 
@@ -158,6 +190,8 @@ auto_derived!(
         pub icon: Option<File>,
         #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
         pub nsfw: Option<bool>,
+        #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+        pub hide_title: Option<bool>,
         #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
         pub active: Option<bool>,
         #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
@@ -206,6 +240,7 @@ auto_derived!(
 
         /// Whether this channel is age-restricted
         pub nsfw: Option<bool>,
+        pub hide_title: Option<bool>,
 
         /// Whether this channel is archived
         pub archived: Option<bool>,

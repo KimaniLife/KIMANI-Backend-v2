@@ -23,6 +23,7 @@ impl AbstractChannel for DummyDb {
             permissions: None,
 
             nsfw: false,
+            hide_title: false,
             password: None,
         })
     }
@@ -71,6 +72,15 @@ impl AbstractChannel for DummyDb {
     async fn remove_user_from_group(&self, channel: &str, user: &str) -> Result<()> {
         info!("Removed {user} from {channel}");
         Ok(())
+    }
+
+    async fn find_marketplace_dm(
+        &self,
+        _listing_id: &str,
+        _buyer: &str,
+        _seller: &str,
+    ) -> Result<Channel> {
+        Err(Error::NotFound)
     }
 
     async fn set_channel_role_permission(

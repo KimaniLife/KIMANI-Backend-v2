@@ -6,10 +6,9 @@ use mongodb::bson::{doc, to_document, Document};
 use mongodb::error::Result;
 use mongodb::options::{FindOneOptions, FindOptions};
 use mongodb::results::{DeleteResult, InsertOneResult, UpdateResult};
+use mongodb::Client;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use mongodb::{Client, Database as MongoDatabase};
-use async_trait::async_trait;
 
 database_derived!(
     #[cfg(feature = "mongodb")]
@@ -38,11 +37,12 @@ impl MongoDb {
     }
 
     pub async fn new(uri: &str, db_name: &str) -> Self {
-        let client = Client::with_uri_str(uri).await.expect("Failed to connect to MongoDB");
+        let client = Client::with_uri_str(uri)
+            .await
+            .expect("Failed to connect to MongoDB");
         let database_name = db_name.to_string(); // Convert db_name to String
         MongoDb(client, database_name)
-    }    
-
+    }
 
     /// Insert one document into a collection
     pub async fn insert_one<T: Serialize>(
@@ -230,7 +230,7 @@ impl MongoDb {
 
     pub async fn init(uri: &str) -> Self {
         // Use "revolt_db" as the default database name. Adjust if needed.
-        Self::new(uri, "revolt_db").await
+        Self::new(uri, "revolt").await
     }
 
     /// Perform any necessary database migrations.
@@ -239,7 +239,6 @@ impl MongoDb {
         // For now, we simply return Ok.
         Ok(())
     }
-
 }
 
 /// Just a string ID struct

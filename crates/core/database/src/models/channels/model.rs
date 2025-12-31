@@ -30,6 +30,33 @@ auto_derived!(
             #[serde(skip_serializing_if = "Option::is_none")]
             last_message_id: Option<String>,
         },
+        MarketplaceDM {
+            #[serde(rename = "_id")]
+            id: String,
+            buyer: String,
+            seller: String,
+            recipients: Vec<String>,
+            active: bool,
+            listing_id: String,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            last_message_id: Option<String>,
+        },
+        ExperienceDM {
+            #[serde(rename = "_id")]
+            id: String,
+            user: String,
+            host: String,
+            experience_id: String,
+            last_message_id: Option<String>,
+        },
+        AdminDM {
+            #[serde(rename = "_id")]
+            id: String,
+            server: String,
+            admin: String,
+            user: String,
+            last_message_id: Option<String>,
+        },
         /// Group channel between 1 or more participants
         Group {
             /// Unique Id
@@ -61,6 +88,10 @@ auto_derived!(
             /// Whether this group is marked as not safe for work
             #[serde(skip_serializing_if = "crate::if_false", default)]
             nsfw: bool,
+
+            /// Whether to hide title channel
+            #[serde(skip_serializing_if = "crate::if_false", default)]
+            hide_title: bool,
         },
         /// Text channel belonging to a server
         TextChannel {
@@ -101,6 +132,10 @@ auto_derived!(
             /// Whether this channel is marked as not safe for work
             #[serde(skip_serializing_if = "crate::if_false", default)]
             nsfw: bool,
+
+            /// Whether to hide title channel
+            #[serde(skip_serializing_if = "crate::if_false", default)]
+            hide_title: bool,
         },
         /// Voice channel belonging to a server
         VoiceChannel {
@@ -132,6 +167,10 @@ auto_derived!(
             /// Whether this channel is marked as not safe for work
             #[serde(skip_serializing_if = "crate::if_false", default)]
             nsfw: bool,
+
+            /// Whether to hide title channel
+            #[serde(skip_serializing_if = "crate::if_false", default)]
+            hide_title: bool,
         },
     }
 );
@@ -151,6 +190,8 @@ auto_derived!(
         pub banner: Option<Vec<ChannelBanner>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub nsfw: Option<bool>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub hide_title: Option<bool>,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub active: Option<bool>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -257,10 +298,12 @@ impl Channel {
             | Channel::Group { id, .. }
             | Channel::SavedMessages { id, .. }
             | Channel::TextChannel { id, .. }
-            | Channel::VoiceChannel { id, .. } => id.clone(),
+            | Channel::VoiceChannel { id, .. }
+            | Channel::MarketplaceDM { id, .. }
+            | Channel::ExperienceDM { id, .. }
+            | Channel::AdminDM { id, .. } => id.clone(),
         }
     }
-
     /// Set role permission on a channel
     pub async fn set_role_permission(
         &mut self,
@@ -380,6 +423,7 @@ impl Channel {
                 description,
                 icon,
                 nsfw,
+                hide_title,
                 permissions,
                 ..
             } => {
@@ -403,6 +447,10 @@ impl Channel {
                     *nsfw = v;
                 }
 
+                if let Some(v) = partial.hide_title {
+                    *hide_title = v;
+                }
+
                 if let Some(v) = partial.permissions {
                     permissions.replace(v);
                 }
@@ -412,6 +460,7 @@ impl Channel {
                 description,
                 icon,
                 nsfw,
+                hide_title,
                 default_permissions,
                 role_permissions,
                 ..
@@ -421,6 +470,7 @@ impl Channel {
                 description,
                 icon,
                 nsfw,
+                hide_title,
                 default_permissions,
                 role_permissions,
                 ..
@@ -440,6 +490,9 @@ impl Channel {
                 if let Some(v) = partial.nsfw {
                     *nsfw = v;
                 }
+                if let Some(v) = partial.hide_title {
+                    *hide_title = v;
+                }
 
                 if let Some(v) = partial.role_permissions {
                     *role_permissions = v;
@@ -448,6 +501,11 @@ impl Channel {
                 if let Some(v) = partial.default_permissions {
                     default_permissions.replace(v);
                 }
+            }
+            Self::MarketplaceDM { .. }
+            | Self::ExperienceDM { .. }
+            | Self::AdminDM { .. } => {
+                // No-op: these channels are not user-editable
             }
         }
     }
