@@ -188,14 +188,11 @@ impl AbstractChannel for MongoDb {
             doc! {
                 "$or": [
                     {
-                        "$or": [
-                            {
-                                "channel_type": "DirectMessage"
-                            },
-                            {
-                                "channel_type": "Group"
-                            }
-                        ],
+                        "channel_type": { "$in": [
+                            "DirectMessage",
+                            "Group",
+                            "MarketplaceDM"
+                        ]},
                         "recipients": user_id
                     },
                     {
@@ -234,6 +231,24 @@ impl AbstractChannel for MongoDb {
                         "$all": [ user_a, user_b ]
                     }
                 }
+            },
+        )
+        .await
+    }
+
+    async fn find_marketplace_dm(
+        &self,
+        listing_id: &str,
+        buyer: &str,
+        seller: &str,
+    ) -> Result<Channel> {
+        self.find_one(
+            "channels",
+            doc! {
+                "channel_type": "MarketplaceDM",
+                "listing_id": listing_id,
+                "buyer": buyer,
+                "seller": seller
             },
         )
         .await

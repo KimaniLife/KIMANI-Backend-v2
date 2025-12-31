@@ -163,6 +163,51 @@ impl From<crate::Channel> for Channel {
                 nsfw,
                 hide_title,
             },
+            crate::Channel::MarketplaceDM {
+                id,
+                buyer,
+                seller,
+                listing_id,
+                last_message_id,
+                active ,
+                recipients, 
+            } => Channel::MarketplaceDM {
+                id,
+                buyer,
+                seller,
+                listing_id,
+                last_message_id,
+                active,
+                recipients,
+            },
+
+            crate::Channel::ExperienceDM {
+                id,
+                user,
+                host,
+                experience_id,
+                last_message_id,
+            } => Channel::ExperienceDM {
+                id,
+                user,
+                host,
+                experience_id,
+                last_message_id,
+            },
+
+            crate::Channel::AdminDM {
+                id,
+                server,
+                admin,
+                user,
+                last_message_id,
+            } => Channel::AdminDM {
+                id,
+                server,
+                admin,
+                user,
+                last_message_id,
+            },
         }
     }
 }
